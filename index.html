@@ -73,7 +73,7 @@
         --color-surface-sunken: #e0d9cf;
         --color-text-primary: #1c1714;
         --color-text-secondary: #3d3630;
-        --color-text-muted: #7a6f66;
+        --color-text-muted: #6b6059;
         --color-accent: #1a6b7a;
         --color-accent-hover: #145762;
         --color-accent-subtle: rgba(26, 107, 122, 0.1);
@@ -1631,7 +1631,10 @@
               <div class="pane-label pane-label--normal" aria-hidden="true">
                 Normal Vision
               </div>
-              <div class="demo-mount" id="demo-normal">
+              <!-- Demo content is a visual demonstration of intentional accessibility
+                   failures. The audit panel below provides the accessible breakdown. -->
+              <p class="sr-only">A product UI with intentional accessibility failures — see the audit panel below for a full breakdown and suggested fixes.</p>
+              <div class="demo-mount" id="demo-normal" aria-hidden="true">
                 <!-- Demo product inserted by JS -->
               </div>
             </div>
@@ -2507,7 +2510,7 @@
             <p class="dp-subtitle">Premium sound for the discerning listener</p>
 
             <!-- Failure #7: color-only stars, no numeric label -->
-            <div class="dp-rating" aria-label="Rating — no numeric label provided (deliberate failure)">
+            <div class="dp-rating" role="group" aria-label="Rating — no numeric label provided (deliberate failure)">
               <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
               <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
               <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
@@ -2833,7 +2836,9 @@
         /* Fade indicators — update on scroll and resize */
         group.addEventListener("scroll", updatePillFades, { passive: true });
         window.addEventListener("resize", updatePillFades, { passive: true });
-        updatePillFades();
+        /* Defer first read of scroll geometry to avoid forced reflow
+           immediately after the DOM write above. */
+        requestAnimationFrame(updatePillFades);
 
         /* Click handler — delegated to the group */
         group.addEventListener("click", (e) => {
@@ -3092,8 +3097,10 @@
         /* 6. Set initial split position */
         setSplit(50);
 
-        /* 7. Render all Lucide icons in the now-populated DOM */
-        lucide.createIcons();
+        /* 7. Render all Lucide icons — deferred to next frame so the
+           DOMContentLoaded task ends before the icon scan begins,
+           keeping it under the 50 ms long-task threshold. */
+        requestAnimationFrame(() => lucide.createIcons());
       });
     </script>
   </body>

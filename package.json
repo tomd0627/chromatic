@@ -1,0 +1,11 @@
+{
+  "name": "chromatic",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp favicon.svg dist/ && html-minifier-terser index.html --collapse-whitespace --remove-comments --minify-css true --minify-js true --output dist/index.html"
+  },
+  "devDependencies": {
+    "html-minifier-terser": "^7.2.0"
+  }
+}
