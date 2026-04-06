@@ -12,6 +12,9 @@ desktop.ini
 # Linux
 *~
 
+# Claude Code
+.claude/
+
 # Editors
 .vscode/
 .idea/
