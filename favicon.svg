@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!--
+    Split-eye favicon: left half rendered in deep teal (normal vision),
+    right half in desaturated grey (impaired/filtered vision).
+    Communicates the tool's core concept at 16×16px.
+  -->
+  <defs>
+    <!-- Clip left half of the eye -->
+    <clipPath id="lh">
+      <rect x="0" y="0" width="16" height="32"/>
+    </clipPath>
+    <!-- Clip right half of the eye -->
+    <clipPath id="rh">
+      <rect x="16" y="0" width="16" height="32"/>
+    </clipPath>
+  </defs>
+
+  <!-- Left half — normal vision (deep teal) -->
+  <g clip-path="url(#lh)">
+    <!-- Eye outline -->
+    <path d="M2 16 C6 8 12 5.5 16 5.5 C20 5.5 26 8 30 16 C26 24 20 26.5 16 26.5 C12 26.5 6 24 2 16 Z"
+          fill="#e8f4f6" stroke="#1a6b7a" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Iris -->
+    <circle cx="16" cy="16" r="6" fill="#1a6b7a"/>
+    <!-- Pupil -->
+    <circle cx="16" cy="16" r="3" fill="#0d3d47"/>
+    <!-- Highlight -->
+    <circle cx="18.5" cy="13.5" r="1.4" fill="rgba(255,255,255,0.72)"/>
+  </g>
+
+  <!-- Right half — impaired vision (desaturated grey) -->
+  <g clip-path="url(#rh)">
+    <!-- Eye outline -->
+    <path d="M2 16 C6 8 12 5.5 16 5.5 C20 5.5 26 8 30 16 C26 24 20 26.5 16 26.5 C12 26.5 6 24 2 16 Z"
+          fill="#f1f3f5" stroke="#94a3b8" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Iris -->
+    <circle cx="16" cy="16" r="6" fill="#94a3b8"/>
+    <!-- Pupil -->
+    <circle cx="16" cy="16" r="3" fill="#374151"/>
+    <!-- Highlight -->
+    <circle cx="18.5" cy="13.5" r="1.4" fill="rgba(255,255,255,0.68)"/>
+  </g>
+
+  <!-- Vertical centre divider — subtle white line at the split -->
+  <line x1="16" y1="5.5" x2="16" y2="26.5"
+        stroke="#ffffff" stroke-width="1" stroke-opacity="0.65"/>
+</svg>

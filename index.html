@@ -1,0 +1,3100 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Chromatic — An interactive accessibility simulator that lets designers and developers experience interfaces through the eyes of users with various visual impairments."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Chromatic — Visual Impairment Accessibility Simulator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <!--
+    Inline theme init: runs synchronously before first paint to prevent
+    flash of incorrect theme. Must be in <head>, not deferred.
+  -->
+    <script>
+      (function () {
+        const stored = localStorage.getItem("chromatic-theme");
+        const prefersDark = window.matchMedia(
+          "(prefers-color-scheme: dark)",
+        ).matches;
+        const theme = stored || (prefersDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+
+    <!-- Non-blocking Google Fonts load (print → all swap trick) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap"
+      media="print"
+      onload="this.media = 'all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap"
+      />
+    </noscript>
+
+    <!-- Lucide Icons — MIT-licensed, deferred so it doesn't block rendering -->
+    <script
+      src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"
+      defer
+    ></script>
+
+    <style>
+      /* ============================================================
+       CHROMATIC — Visual Impairment Accessibility Simulator
+       ============================================================
+
+       Palette: Warm Linen + Deep Teal
+       Deliberately inverts the dark-navy/mint signature on tomdeluca.dev.
+       Where the portfolio uses #0b1622 dark + #5ef0c8 bright mint,
+       Chromatic uses warm linen + deep teal — same visual family,
+       opposite luminance register. Signals "same developer, different tool."
+
+       Fonts: Fraunces (display serif, optical variable) chosen for warmth
+       and editorial precision. Atkinson Hyperlegible (body) was designed
+       by the Braille Institute specifically for low-vision readability —
+       using it in an accessibility tool is both functional and intentional.
+       ============================================================ */
+
+      :root {
+        /* --- Palette --- */
+        --color-bg: #f5f1eb;
+        --color-surface: #ede8e0;
+        --color-surface-raised: #faf8f4;
+        --color-surface-sunken: #e0d9cf;
+        --color-text-primary: #1c1714;
+        --color-text-secondary: #3d3630;
+        --color-text-muted: #7a6f66;
+        --color-accent: #1a6b7a;
+        --color-accent-hover: #145762;
+        --color-accent-subtle: rgba(26, 107, 122, 0.1);
+        --color-border: #d4cdc4;
+        --color-border-strong: #a89f95;
+        --color-focus-ring: #1a6b7a;
+        --color-success: #2d7a4f;
+        --color-warning: #b45309;
+        --color-danger: #c0392b;
+
+        /* --- Typography --- */
+        --font-display: "Fraunces", Georgia, serif;
+        --font-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+        --font-mono:
+          "Fira Code", "Cascadia Code", "Consolas", ui-monospace, monospace;
+
+        /* --- Type scale (fluid via clamp) --- */
+        --text-xs: clamp(0.7rem, 1.5vw, 0.75rem);
+        --text-sm: clamp(0.8rem, 1.8vw, 0.875rem);
+        --text-base: clamp(0.9rem, 2vw, 1rem);
+        --text-lg: clamp(1rem, 2.2vw, 1.125rem);
+        --text-xl: clamp(1.1rem, 2.5vw, 1.25rem);
+        --text-2xl: clamp(1.3rem, 3vw, 1.5rem);
+        --text-3xl: clamp(1.6rem, 4vw, 2rem);
+        --text-4xl: clamp(2rem, 5vw, 2.75rem);
+
+        /* --- Spacing (4px base scale) --- */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+        --space-10: 2.5rem;
+        --space-12: 3rem;
+        --space-16: 4rem;
+
+        /* --- Shape & depth --- */
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --radius-lg: 14px;
+        --radius-xl: 20px;
+        --radius-full: 9999px;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.14);
+
+        /* --- Motion --- */
+        --transition-fast: 120ms ease;
+        --transition-base: 220ms ease;
+        --transition-slow: 380ms ease;
+      }
+
+      /* Dark mode overrides — full redesign, not just inversion */
+      [data-theme="dark"] {
+        --color-bg: #0f1512;
+        --color-surface: #172119;
+        --color-surface-raised: #1e2d24;
+        --color-surface-sunken: #0b100d;
+        --color-text-primary: #e6f0ec;
+        --color-text-secondary: #b4c8be;
+        --color-text-muted: #7a9990;
+        --color-accent: #2a9bae;
+        --color-accent-hover: #3ab3c8;
+        --color-accent-subtle: rgba(42, 155, 174, 0.12);
+        --color-border: #263830;
+        --color-border-strong: #3a5248;
+        --color-focus-ring: #2a9bae;
+        --color-success: #34a76a;
+        --color-warning: #d97706;
+        --color-danger: #e05252;
+      }
+
+      /* =====================
+       RESET
+       ===================== */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        font-family: var(--font-body);
+        font-size: var(--text-base);
+        color: var(--color-text-primary);
+        background-color: var(--color-bg);
+        line-height: 1.65;
+        min-height: 100dvh;
+      }
+
+      img,
+      svg {
+        display: block;
+      }
+
+      button {
+        font-family: inherit;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      /* =====================
+       FOCUS — :focus-visible only, never :focus alone
+       ===================== */
+      :focus-visible {
+        outline: 2px solid var(--color-focus-ring);
+        outline-offset: 3px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* =====================
+       UTILITY
+       ===================== */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1100px;
+        margin-inline: auto;
+        padding-inline: var(--space-6);
+      }
+
+      /* =====================
+       HEADER
+       ===================== */
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background-color: rgba(245, 241, 235, 0.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      [data-theme="dark"] .site-header {
+        background-color: rgba(15, 21, 18, 0.9);
+      }
+
+      .header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+      }
+
+      .site-logo {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        text-decoration: none;
+        color: var(--color-text-primary);
+      }
+
+      .logo-mark {
+        font-size: 1.5rem;
+        color: var(--color-accent);
+        line-height: 1;
+        font-style: normal;
+      }
+
+      .logo-text {
+        font-family: var(--font-display);
+        font-size: var(--text-lg);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      .header-link {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        color: var(--color-text-muted);
+        text-decoration: none;
+        font-size: var(--text-sm);
+      }
+
+      .header-link svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .theme-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+      }
+
+      .theme-toggle svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      /* =====================
+       HERO
+       ===================== */
+      .hero {
+        padding-top: var(--space-12);
+        padding-bottom: var(--space-8);
+        text-align: center;
+      }
+
+      .hero-title {
+        font-family: var(--font-display);
+        font-size: var(--text-4xl);
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-5);
+      }
+
+      .hero-title em {
+        font-style: italic;
+        color: var(--color-accent);
+      }
+
+      .hero-description {
+        max-width: 62ch;
+        margin-inline: auto;
+        color: var(--color-text-secondary);
+        font-size: var(--text-lg);
+        line-height: 1.75;
+      }
+
+      /* =====================
+       FILTER PILLS
+       ===================== */
+      .filter-section {
+        padding-bottom: var(--space-6);
+        scroll-margin-top: 72px; /* header 60px + breathing room */
+      }
+
+      .filter-pills-wrap {
+        position: relative;
+      }
+
+      .filter-pills {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      @media (max-width: 640px) {
+        .filter-pills {
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          padding-bottom: var(--space-1);
+        }
+
+        .filter-pills::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* Both fade edges — hidden by default, shown via JS classes */
+        .filter-pills-wrap::before,
+        .filter-pills-wrap::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 40px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          z-index: 1;
+        }
+
+        .filter-pills-wrap::before {
+          left: 0;
+          background: linear-gradient(to left, transparent, var(--color-bg));
+        }
+
+        .filter-pills-wrap::after {
+          right: 0;
+          background: linear-gradient(to right, transparent, var(--color-bg));
+        }
+
+        .filter-pills-wrap.overflow-left::before {
+          opacity: 1;
+        }
+        .filter-pills-wrap.overflow-right::after {
+          opacity: 1;
+        }
+      }
+
+      .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        background: var(--color-surface-raised);
+        color: var(--color-text-muted);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        font-weight: 400;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        /* No appearance reset needed — using a div with role=radio */
+      }
+
+      .filter-pill svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      .filter-pill[aria-checked="true"] {
+        background: var(--color-accent);
+        border-color: var(--color-accent);
+        color: #ffffff;
+        box-shadow: var(--shadow-sm);
+      }
+
+      /* =====================
+       SLIDER SECTION
+       ===================== */
+      .slider-section {
+        padding-bottom: var(--space-8);
+      }
+
+      .slider-container {
+        position: relative;
+        height: 480px;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--color-border);
+        /* Prevent text selection and default touch behavior during drag */
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .pane {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      /*
+      Clip-path uses --split CSS variable injected by JS.
+      Default 50% shows equal halves on first load.
+    */
+      .pane-normal {
+        clip-path: inset(0 calc(100% - var(--split, 50%)) 0 0);
+      }
+
+      .pane-filtered {
+        clip-path: inset(0 0 0 var(--split, 50%));
+      }
+
+      .demo-mount {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .pane-label {
+        position: absolute;
+        top: var(--space-3);
+        z-index: 5;
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        pointer-events: none;
+      }
+
+      .pane-label--normal {
+        left: var(--space-3);
+        background: rgba(0, 0, 0, 0.52);
+        color: #ffffff;
+      }
+
+      .pane-label--filtered {
+        right: var(--space-3);
+        background: var(--color-accent);
+        color: #ffffff;
+      }
+
+      /* Slider handle — full-height vertical bar with a draggable pill */
+      .slider-handle {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: var(--split, 50%);
+        width: 44px; /* 44px: WCAG 2.5.5 minimum touch target */
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: ew-resize;
+        z-index: 10;
+        touch-action: none; /* owns this touch gesture — no page scroll */
+      }
+
+      .handle-track {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: var(--color-accent);
+        pointer-events: none;
+      }
+
+      .handle-pill {
+        position: relative;
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-full);
+        background: var(--color-accent);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-md);
+        flex-shrink: 0;
+        pointer-events: none; /* parent .slider-handle receives events */
+      }
+
+      .handle-pill svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Canvas overlays — macular spot and glaucoma vignette */
+      .overlay-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      /* =====================
+       DEMO PRODUCT (scoped to .dp-*)
+       The "bad" website being filtered.
+       These styles use hardcoded values intentionally — the demo
+       represents a third-party site with its own design system,
+       independent of this app's CSS custom properties.
+       ===================== */
+      .dp-wrapper {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+          sans-serif;
+        overflow: hidden;
+      }
+
+      .dp-layout {
+        display: grid;
+        grid-template-columns: 2fr 3fr;
+        height: 100%;
+      }
+
+      /* Left: product image placeholder */
+      .dp-image {
+        background: linear-gradient(
+          160deg,
+          #1e293b 0%,
+          #334155 55%,
+          #1e293b 100%
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px;
+      }
+
+      .dp-icon-wrap {
+        width: 80px;
+        height: 80px;
+      }
+
+      .dp-icon-wrap svg {
+        width: 100%;
+        height: 100%;
+        color: rgba(148, 163, 184, 0.55);
+      }
+
+      .dp-image-label {
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        color: rgba(148, 163, 184, 0.35);
+        text-transform: uppercase;
+      }
+
+      /* Right: product info */
+      .dp-info {
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        overflow: hidden;
+      }
+
+      .dp-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .dp-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* Deliberate failure #2 — status communicated by color alone, no icon or shape */
+      .dp-badge--in-stock {
+        color: #22c55e;
+        background: #f0fdf4;
+        border: 1px solid #22c55e;
+      }
+
+      .dp-badge--out-of-stock {
+        color: #ef4444;
+        background: #fef2f2;
+        border: 1px solid #ef4444;
+      }
+
+      .dp-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.3;
+        margin-top: 2px;
+      }
+
+      /* Deliberate failure #1 — contrast ratio ~2.85:1 on white (fails WCAG AA 4.5:1) */
+      .dp-subtitle {
+        font-size: 12px;
+        color: #999999;
+        margin-top: -3px;
+      }
+
+      .dp-rating {
+        display: flex;
+        gap: 1px;
+        align-items: center;
+      }
+
+      .dp-star {
+        font-size: 15px;
+        line-height: 1;
+      }
+
+      /* Deliberate failure #7 — color is sole differentiator, no numeric label */
+      .dp-star--filled {
+        color: #f59e0b;
+      }
+      .dp-star--empty {
+        color: #e5e7eb;
+      }
+
+      .dp-price-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      /* Deliberate failure #8 — font-weight 300 at 13px is illegible under blur/low contrast */
+      .dp-price {
+        font-size: 13px;
+        font-weight: 300;
+        color: #111827;
+      }
+
+      /* Deliberate failure #6 — contrast ratio ~2.32:1 on white (fails WCAG AA) */
+      .dp-price-link {
+        font-size: 11px;
+        color: #aaaaaa;
+        text-decoration: underline;
+      }
+
+      /* Rating distribution chart */
+      .dp-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .dp-chart-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .dp-chart-lbl {
+        font-size: 9px;
+        color: #6b7280;
+        width: 16px;
+        flex-shrink: 0;
+        text-align: right;
+      }
+
+      .dp-bar-track {
+        flex: 1;
+        height: 7px;
+        background: #f3f4f6;
+        border-radius: 9999px;
+        overflow: hidden;
+      }
+
+      .dp-bar {
+        height: 100%;
+        border-radius: 9999px;
+        min-width: 4px;
+      }
+
+      /* Deliberate failure #4 — chart uses red and green only, no labels/patterns/textures */
+      .dp-bar--green {
+        background: #22c55e;
+      }
+      .dp-bar--red {
+        background: #ef4444;
+      }
+
+      .dp-chart-pct {
+        font-size: 9px;
+        color: #6b7280;
+        width: 24px;
+        flex-shrink: 0;
+      }
+
+      /* Deliberate failure #3 — coral #e8735a on white is ~3.0:1 (fails WCAG AA 4.5:1) */
+      .dp-cta {
+        display: block;
+        width: 100%;
+        padding: 9px 14px;
+        border: none;
+        border-radius: 6px;
+        background: #e8735a;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        margin-top: 2px;
+      }
+
+      /* Deliberate failure #5 — 10px text is below any reasonable minimum */
+      .dp-fine-print {
+        font-size: 10px;
+        color: #9ca3af;
+        line-height: 1.4;
+      }
+
+      .dp-fine-link {
+        color: #aaaaaa; /* deliberate failure: low contrast */
+      }
+
+      /* =====================
+       CONDITION CARD
+       ===================== */
+      .condition-section {
+        padding-top: var(--space-8);
+        padding-bottom: var(--space-6);
+        min-height: 160px; /* prevent layout shift on filter swap */
+      }
+
+      .condition-card {
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-6);
+      }
+
+      .condition-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+        flex-wrap: wrap;
+      }
+
+      .condition-name {
+        font-family: var(--font-display);
+        font-size: var(--text-2xl);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      .condition-stat {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        background: var(--color-accent-subtle);
+        border: 1px solid rgba(26, 107, 122, 0.2);
+        border-radius: var(--radius-lg);
+        color: var(--color-accent);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        max-width: 55ch;
+        line-height: 1.5;
+      }
+
+      [data-theme="dark"] .condition-stat {
+        border-color: rgba(42, 155, 174, 0.22);
+      }
+
+      .condition-stat svg {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .condition-description {
+        color: var(--color-text-secondary);
+        line-height: 1.75;
+        font-size: var(--text-base);
+      }
+
+      /* Normal vision — no-filter informational state */
+      .condition-normal {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-5);
+      }
+
+      .condition-icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        background: var(--color-accent-subtle);
+        color: var(--color-accent);
+        flex-shrink: 0;
+      }
+
+      .condition-icon-wrap svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .condition-hint {
+        margin-top: var(--space-3);
+        color: var(--color-text-muted);
+        font-size: var(--text-sm);
+        font-style: italic;
+      }
+
+      /* =====================
+       AUDIT PANEL
+       ===================== */
+      .audit-section {
+        padding-bottom: var(--space-16);
+      }
+
+      .audit-heading {
+        font-family: var(--font-display);
+        font-size: var(--text-xl);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        letter-spacing: -0.015em;
+        margin-bottom: var(--space-5);
+      }
+
+      .audit-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+        gap: var(--space-5);
+      }
+
+      .audit-empty {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-8);
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        color: var(--color-text-muted);
+        font-size: var(--text-sm);
+      }
+
+      .audit-empty svg {
+        width: 22px;
+        height: 22px;
+        color: var(--color-success);
+        flex-shrink: 0;
+      }
+
+      /* Issue cards */
+      .issue-card {
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .issue-card__header {
+        padding: var(--space-5);
+        border-bottom: 1px solid var(--color-border);
+        background: rgba(192, 57, 43, 0.04);
+      }
+
+      [data-theme="dark"] .issue-card__header {
+        background: rgba(224, 82, 82, 0.05);
+      }
+
+      .issue-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-sm);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: var(--space-2);
+      }
+
+      .issue-badge--problem {
+        background: rgba(192, 57, 43, 0.1);
+        color: var(--color-danger);
+      }
+
+      .issue-badge--fix {
+        background: rgba(45, 122, 79, 0.1);
+        color: var(--color-success);
+      }
+
+      .issue-badge svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      .issue-problem {
+        font-weight: 600;
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+        line-height: 1.5;
+      }
+
+      .issue-fix {
+        padding: var(--space-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .issue-fix-text {
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        line-height: 1.7;
+      }
+
+      .issue-code {
+        background: var(--color-surface-sunken);
+        border-left: 3px solid var(--color-accent);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: var(--space-3) var(--space-4);
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        line-height: 1.65;
+        white-space: pre;
+        color: var(--color-text-secondary);
+      }
+
+      .issue-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+
+      .wcag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        text-decoration: none;
+        background: var(--color-surface);
+      }
+
+      .wcag-chip:hover {
+        color: var(--color-accent);
+        border-color: var(--color-accent);
+        background: var(--color-accent-subtle);
+      }
+
+      .wcag-chip svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        background: var(--color-surface);
+        color: var(--color-text-muted);
+        font-family: var(--font-body);
+        font-size: var(--text-xs);
+        cursor: pointer;
+      }
+
+      .copy-btn:hover {
+        color: var(--color-accent);
+        border-color: var(--color-accent);
+        background: var(--color-accent-subtle);
+      }
+
+      .copy-btn svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* =====================
+       FOOTER
+       ===================== */
+      .site-footer {
+        border-top: 1px solid var(--color-border);
+        background: var(--color-surface);
+        padding: var(--space-6) 0;
+      }
+
+      .footer-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+        flex-wrap: wrap;
+      }
+
+      .footer-credit {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+      }
+
+      .footer-credit a {
+        color: var(--color-accent);
+        text-decoration: none;
+      }
+
+      .footer-credit a:hover {
+        text-decoration: underline;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: var(--space-5);
+      }
+
+      .footer-links a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        text-decoration: none;
+      }
+
+      .footer-links a:hover {
+        color: var(--color-accent);
+      }
+
+      .footer-links svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* =====================
+       MOTION — all transitions inside this block.
+       Outside it: instant state, no animation. No exceptions.
+       ===================== */
+      @media (prefers-reduced-motion: no-preference) {
+        .site-logo,
+        .header-link,
+        .theme-toggle {
+          transition:
+            color var(--transition-fast),
+            background-color var(--transition-fast),
+            border-color var(--transition-fast);
+        }
+
+        .filter-pill {
+          transition:
+            background-color var(--transition-fast),
+            color var(--transition-fast),
+            border-color var(--transition-fast),
+            box-shadow var(--transition-fast);
+        }
+
+        .handle-pill {
+          transition: transform var(--transition-fast);
+        }
+
+        .slider-handle:hover .handle-pill {
+          transform: scale(1.1);
+        }
+
+        /* Filter transition on the filtered pane — active only when NOT dragging */
+        #demo-filtered {
+          transition: filter var(--transition-slow);
+        }
+
+        .slider-container.is-dragging #demo-filtered {
+          transition: none;
+        }
+
+        .issue-card {
+          transition: box-shadow var(--transition-base);
+        }
+
+        .wcag-chip,
+        .copy-btn {
+          transition:
+            color var(--transition-fast),
+            border-color var(--transition-fast),
+            background-color var(--transition-fast);
+        }
+
+        .footer-links a,
+        .footer-credit a {
+          transition: color var(--transition-fast);
+        }
+      }
+
+      /* =====================
+       SCREENSHOT GALLERY
+       ===================== */
+      .gallery-section {
+        padding-top: var(--space-2);
+        padding-bottom: var(--space-16);
+      }
+
+      .gallery-heading {
+        font-family: var(--font-display);
+        font-size: var(--text-2xl);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin: 0 0 var(--space-2);
+      }
+
+      .gallery-description {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        margin: 0 0 var(--space-6);
+      }
+
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-6);
+      }
+
+      @media (max-width: 600px) {
+        .gallery-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .gallery-card {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        background: var(--color-surface-raised);
+      }
+
+      .gallery-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      .gallery-scenario {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--color-text-secondary);
+      }
+
+      .gallery-filter-chip {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-full);
+        background: var(--color-accent-subtle);
+        color: var(--color-accent);
+      }
+
+      .gallery-preview {
+        padding: var(--space-5);
+        background: #ffffff;
+      }
+
+      .gallery-callout {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        padding: var(--space-3) var(--space-4);
+        margin: 0;
+        border-top: 1px solid var(--color-border);
+      }
+
+      /* --- Form validation scenario --- */
+      .gf-form {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .gf-field {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .gf-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .gf-input {
+        font-size: 11px;
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: 1.5px solid #d1d5db;
+        color: #111;
+        background: #f9fafb;
+      }
+      .gf-input--error {
+        border-color: #dc2626;
+        background: #fef2f2;
+      }
+      .gf-input--success {
+        border-color: #16a34a;
+        background: #f0fdf4;
+      }
+      .gf-msg {
+        font-size: 10px;
+        font-weight: 500;
+      }
+      .gf-msg--error {
+        color: #dc2626;
+      }
+      .gf-msg--success {
+        color: #16a34a;
+      }
+      .gf-btn {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 6px 12px;
+        background: #1d4ed8;
+        color: #fff;
+        border-radius: 4px;
+        align-self: flex-start;
+      }
+
+      /* --- Analytics chart scenario --- */
+      .gc-chart {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .gc-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #111827;
+      }
+      .gc-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .gc-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .gc-month {
+        font-size: 9px;
+        color: #6b7280;
+        width: 24px;
+        flex-shrink: 0;
+      }
+      .gc-bar-wrap {
+        flex: 1;
+        height: 10px;
+        background: #f3f4f6;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .gc-bar {
+        height: 100%;
+        border-radius: 2px;
+      }
+      .gc-bar--pos {
+        background: #22c55e;
+      }
+      .gc-bar--neg {
+        background: #ef4444;
+      }
+      .gc-val {
+        font-size: 9px;
+        font-weight: 600;
+        width: 32px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .gc-val--pos {
+        color: #16a34a;
+      }
+      .gc-val--neg {
+        color: #dc2626;
+      }
+      .gc-legend {
+        display: flex;
+        gap: 12px;
+      }
+      .gc-legend-item {
+        font-size: 9px;
+      }
+      .gc-legend--pos {
+        color: #22c55e;
+      }
+      .gc-legend--neg {
+        color: #ef4444;
+      }
+
+      /* --- Navigation / status scenario --- */
+      .gn-nav {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .gn-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 10px;
+        background: #1e293b;
+        border-radius: 4px;
+      }
+      .gn-brand {
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .gn-links {
+        display: flex;
+        gap: 2px;
+      }
+      .gn-link {
+        position: relative;
+        font-size: 10px;
+        color: #94a3b8;
+        padding: 2px 6px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .gn-link--active {
+        color: #fff;
+        background: #334155;
+      }
+      .gn-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 7px;
+        font-weight: 700;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        color: #fff;
+      }
+      .gn-badge--red {
+        background: #ef4444;
+      }
+      .gn-badge--amber {
+        background: #f59e0b;
+      }
+      .gn-badge--green {
+        background: #22c55e;
+      }
+      .gn-statuses {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+      }
+      .gn-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: #374151;
+      }
+      .gn-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .gn-dot--green {
+        background: #22c55e;
+      }
+      .gn-dot--amber {
+        background: #f59e0b;
+      }
+      .gn-dot--red {
+        background: #ef4444;
+      }
+
+      /* --- Article header scenario (blur target) --- */
+      .ga-article {
+        font-family: Georgia, "Times New Roman", serif;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ga-tag {
+        font-family: -apple-system, sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #2563eb;
+      }
+      .ga-title {
+        font-size: 15px;
+        font-weight: 300;
+        color: #111827;
+        line-height: 1.35;
+      }
+      .ga-meta {
+        font-family: -apple-system, sans-serif;
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .ga-meta-item {
+        font-size: 9px;
+        color: #9ca3af;
+      }
+      .ga-sep {
+        font-size: 9px;
+        color: #d1d5db;
+      }
+      .ga-excerpt {
+        font-size: 9px;
+        color: #6b7280;
+        line-height: 1.55;
+        font-family: -apple-system, sans-serif;
+      }
+      .ga-link {
+        font-family: -apple-system, sans-serif;
+        font-size: 10px;
+        color: #2563eb;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+    SVG filter definitions — hidden from layout and assistive technology.
+    color-interpolation-filters="linearRGB" tells the browser to convert
+    from sRGB to linear light before applying the matrix, then back after.
+    This is required for the Brettel/Viénot CVD matrices to be physiologically
+    accurate. Without it, the browser would apply the matrix in gamma-encoded
+    space, producing incorrect results.
+  -->
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      style="
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        pointer-events: none;
+      "
+    >
+      <defs>
+        <!-- Protanopia: absent L (red-sensitive) cones. Brettel/Viénot model. -->
+        <filter id="filter-protanopia" color-interpolation-filters="linearRGB">
+          <feColorMatrix
+            type="matrix"
+            values="
+          0.567 0.433 0     0 0
+          0.558 0.442 0     0 0
+          0     0.242 0.758 0 0
+          0     0     0     1 0"
+          />
+        </filter>
+
+        <!-- Deuteranopia: absent M (green-sensitive) cones. Most common CVD. -->
+        <filter
+          id="filter-deuteranopia"
+          color-interpolation-filters="linearRGB"
+        >
+          <feColorMatrix
+            type="matrix"
+            values="
+          0.625 0.375 0   0 0
+          0.7   0.3   0   0 0
+          0     0.3   0.7 0 0
+          0     0     0   1 0"
+          />
+        </filter>
+
+        <!-- Tritanopia: absent S (blue-sensitive) cones. Rare, both sexes. -->
+        <filter id="filter-tritanopia" color-interpolation-filters="linearRGB">
+          <feColorMatrix
+            type="matrix"
+            values="
+          0.95  0.05  0     0 0
+          0     0.433 0.567 0 0
+          0     0.475 0.525 0 0
+          0     0     0     1 0"
+          />
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Screen-reader live region for filter change announcements -->
+    <div
+      class="sr-only"
+      aria-live="polite"
+      aria-atomic="true"
+      id="filter-announcement"
+    ></div>
+
+    <header class="site-header" id="site-header">
+      <div class="header-inner container">
+        <a href="/" class="site-logo" aria-label="Chromatic — home">
+          <span class="logo-mark" aria-hidden="true">◑</span>
+          <span class="logo-text">Chromatic</span>
+        </a>
+        <div class="header-actions">
+          <button
+            class="theme-toggle"
+            id="theme-toggle"
+            aria-label="Switch to dark mode"
+          >
+            <i data-lucide="moon" id="theme-icon"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="container">
+          <h1 id="hero-heading" class="hero-title">
+            See through <em>different eyes</em>
+          </h1>
+          <p class="hero-description">
+            Chromatic simulates visual impairments on a live UI containing
+            deliberate accessibility failures. Select a filter, drag the handle
+            to compare, then explore exactly what breaks and how to fix it.
+          </p>
+        </div>
+      </section>
+
+      <!-- Filter selector — radiogroup pattern with arrow-key navigation -->
+      <div class="filter-section container">
+        <div class="filter-pills-wrap">
+          <div
+            role="radiogroup"
+            aria-label="Visual impairment filter"
+            class="filter-pills"
+            id="filter-pills"
+          >
+            <!-- Populated by JS from FILTERS data -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison slider -->
+      <section class="slider-section" aria-labelledby="slider-heading">
+        <div class="container">
+          <h2 id="slider-heading" class="sr-only">Vision comparison slider</h2>
+          <div class="slider-container" id="slider-container">
+            <!-- Left pane: unfiltered reference -->
+            <div class="pane pane-normal" id="pane-normal">
+              <div class="pane-label pane-label--normal" aria-hidden="true">
+                Normal Vision
+              </div>
+              <div class="demo-mount" id="demo-normal">
+                <!-- Demo product inserted by JS -->
+              </div>
+            </div>
+
+            <!-- Right pane: filtered — aria-hidden because it's a visual-only duplicate -->
+            <div
+              class="pane pane-filtered"
+              id="pane-filtered"
+              aria-hidden="true"
+            >
+              <div class="pane-label pane-label--filtered" id="filter-label">
+                Normal Vision
+              </div>
+              <div class="demo-mount" id="demo-filtered">
+                <!-- Demo product inserted by JS -->
+              </div>
+              <canvas
+                class="overlay-canvas"
+                id="overlay-macular"
+                hidden
+              ></canvas>
+              <canvas
+                class="overlay-canvas"
+                id="overlay-glaucoma"
+                hidden
+              ></canvas>
+            </div>
+
+            <!-- Draggable divider handle -->
+            <div
+              class="slider-handle"
+              id="slider-handle"
+              role="slider"
+              aria-label="Comparison position — drag or use arrow keys"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="50"
+              tabindex="0"
+            >
+              <div class="handle-track" aria-hidden="true"></div>
+              <div class="handle-pill" aria-hidden="true">
+                <i data-lucide="grip-vertical"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Condition info — aria-live so screen readers hear filter changes -->
+      <section
+        id="condition"
+        class="condition-section container"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        <!-- Populated by JS -->
+      </section>
+
+      <!-- Accessibility audit panel -->
+      <section
+        id="audit"
+        class="audit-section container"
+        aria-label="Accessibility issues for current filter"
+        aria-live="polite"
+      >
+        <!-- Populated by JS -->
+      </section>
+
+      <!-- Screenshot gallery — different UIs under different conditions -->
+      <section
+        class="gallery-section container"
+        aria-label="Accessibility failure examples across different UI types"
+      >
+        <h2 class="gallery-heading">The same failures, everywhere</h2>
+        <p class="gallery-description">
+          These aren't contrived edge cases. Color-only information and low
+          contrast show up across every kind of interface.
+        </p>
+        <div class="gallery-grid">
+          <!-- Card 1: Form validation — Protanopia -->
+          <div class="gallery-card">
+            <div class="gallery-card-header">
+              <span class="gallery-scenario">Form validation</span>
+              <span class="gallery-filter-chip">Protanopia</span>
+            </div>
+            <div
+              class="gallery-preview"
+              style="filter: url(#filter-protanopia)"
+            >
+              <div class="gf-form">
+                <div class="gf-field">
+                  <span class="gf-label">Email address</span>
+                  <div class="gf-input gf-input--error">not-an-email</div>
+                  <span class="gf-msg gf-msg--error"
+                    >&#x2715; Invalid email address</span
+                  >
+                </div>
+                <div class="gf-field">
+                  <span class="gf-label">Username</span>
+                  <div class="gf-input gf-input--success">tomdeluca_dev</div>
+                  <span class="gf-msg gf-msg--success"
+                    >&#x2713; Username available</span
+                  >
+                </div>
+                <div class="gf-btn">Create account</div>
+              </div>
+            </div>
+            <p class="gallery-callout">
+              Error and success states shift to the same olive-brown — the form
+              gives no legible feedback.
+            </p>
+          </div>
+
+          <!-- Card 2: Analytics chart — Deuteranopia -->
+          <div class="gallery-card">
+            <div class="gallery-card-header">
+              <span class="gallery-scenario">Analytics chart</span>
+              <span class="gallery-filter-chip">Deuteranopia</span>
+            </div>
+            <div
+              class="gallery-preview"
+              style="filter: url(#filter-deuteranopia)"
+            >
+              <div class="gc-chart">
+                <div class="gc-title">Monthly performance</div>
+                <div class="gc-rows">
+                  <div class="gc-row">
+                    <span class="gc-month">Jan</span>
+                    <div class="gc-bar-wrap">
+                      <div class="gc-bar gc-bar--pos" style="width: 78%"></div>
+                    </div>
+                    <span class="gc-val gc-val--pos">+78%</span>
+                  </div>
+                  <div class="gc-row">
+                    <span class="gc-month">Feb</span>
+                    <div class="gc-bar-wrap">
+                      <div class="gc-bar gc-bar--neg" style="width: 41%"></div>
+                    </div>
+                    <span class="gc-val gc-val--neg">&#x2212;41%</span>
+                  </div>
+                  <div class="gc-row">
+                    <span class="gc-month">Mar</span>
+                    <div class="gc-bar-wrap">
+                      <div class="gc-bar gc-bar--pos" style="width: 91%"></div>
+                    </div>
+                    <span class="gc-val gc-val--pos">+91%</span>
+                  </div>
+                  <div class="gc-row">
+                    <span class="gc-month">Apr</span>
+                    <div class="gc-bar-wrap">
+                      <div class="gc-bar gc-bar--neg" style="width: 27%"></div>
+                    </div>
+                    <span class="gc-val gc-val--neg">&#x2212;27%</span>
+                  </div>
+                  <div class="gc-row">
+                    <span class="gc-month">May</span>
+                    <div class="gc-bar-wrap">
+                      <div class="gc-bar gc-bar--pos" style="width: 63%"></div>
+                    </div>
+                    <span class="gc-val gc-val--pos">+63%</span>
+                  </div>
+                </div>
+                <div class="gc-legend">
+                  <span class="gc-legend-item gc-legend--pos"
+                    >&#x25AC; Gain</span
+                  >
+                  <span class="gc-legend-item gc-legend--neg"
+                    >&#x25AC; Loss</span
+                  >
+                </div>
+              </div>
+            </div>
+            <p class="gallery-callout">
+              Positive and negative bars collapse to an identical hue — the
+              chart becomes uninterpretable.
+            </p>
+          </div>
+
+          <!-- Card 3: Navigation / status — Achromatopsia -->
+          <div class="gallery-card">
+            <div class="gallery-card-header">
+              <span class="gallery-scenario">Navigation &amp; status</span>
+              <span class="gallery-filter-chip">Achromatopsia</span>
+            </div>
+            <div
+              class="gallery-preview"
+              style="filter: grayscale(100%) contrast(1.05)"
+            >
+              <div class="gn-nav">
+                <div class="gn-topbar">
+                  <span class="gn-brand">AppDash</span>
+                  <div class="gn-links">
+                    <span class="gn-link gn-link--active">Home</span>
+                    <span class="gn-link"
+                      >Inbox <span class="gn-badge gn-badge--red">4</span></span
+                    >
+                    <span class="gn-link"
+                      >Alerts
+                      <span class="gn-badge gn-badge--amber">!</span></span
+                    >
+                    <span class="gn-link"
+                      >Status
+                      <span class="gn-badge gn-badge--green"
+                        >&#x2713;</span
+                      ></span
+                    >
+                  </div>
+                </div>
+                <div class="gn-statuses">
+                  <div class="gn-status">
+                    <span class="gn-dot gn-dot--green"></span>API server —
+                    Online
+                  </div>
+                  <div class="gn-status">
+                    <span class="gn-dot gn-dot--amber"></span>Background sync —
+                    Pending
+                  </div>
+                  <div class="gn-status">
+                    <span class="gn-dot gn-dot--red"></span>Email service —
+                    Offline
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="gallery-callout">
+              Every badge and status dot reduces to the same grey — urgent and
+              healthy states are indistinguishable.
+            </p>
+          </div>
+
+          <!-- Card 4: Article header — Refractive Error (blur) -->
+          <div class="gallery-card">
+            <div class="gallery-card-header">
+              <span class="gallery-scenario">Content / editorial</span>
+              <span class="gallery-filter-chip">Refractive Error</span>
+            </div>
+            <div
+              class="gallery-preview"
+              style="filter: blur(2px) contrast(0.9)"
+            >
+              <div class="ga-article">
+                <span class="ga-tag">Tutorial</span>
+                <p class="ga-title">
+                  Getting Started with Accessible Design Systems
+                </p>
+                <div class="ga-meta">
+                  <span class="ga-meta-item">Sarah Chen</span>
+                  <span class="ga-sep">·</span>
+                  <span class="ga-meta-item">March 14, 2024</span>
+                  <span class="ga-sep">·</span>
+                  <span class="ga-meta-item">8 min read</span>
+                </div>
+                <p class="ga-excerpt">
+                  A component library is only as good as its accessibility
+                  foundations. Start with colour contrast, focus management, and
+                  semantic HTML before reaching for any framework.
+                </p>
+                <span class="ga-link">Read article &#x2192;</span>
+              </div>
+            </div>
+            <p class="gallery-callout">
+              The light-weight title strokes dissolve; grey byline and small
+              body text become completely illegible.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="footer-inner container">
+        <p class="footer-credit">
+          A project demonstrating accessibility engineering
+        </p>
+        <nav class="footer-links" aria-label="External resources">
+          <a
+            href="https://www.w3.org/WAI/WCAG21/quickref/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="WCAG 2.1 Quick Reference (opens in new tab)"
+          >
+            <i data-lucide="book-open"></i>
+            <span>WCAG Reference</span>
+          </a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      "use strict";
+
+      /* ============================================================
+       DATA — all content defined here, UI is entirely data-driven.
+       This demonstrates separation of concerns: no hardcoded UI text.
+       ============================================================ */
+
+      const FILTERS = [
+        {
+          id: "normal",
+          label: "Normal Vision",
+          icon: "eye",
+          title: "Baseline — no filter applied",
+          description:
+            "This is the reference state. Notice the failing elements on the left: the grey subtitle, the coral CTA button, the color-only status badges, the tiny fine print. These are all passing in normal vision but fail accessibility standards. Select a filter to see how they degrade.",
+          stat: null,
+          issues: [],
+        },
+        {
+          id: "blur-mild",
+          label: "Refractive Error",
+          icon: "eye-off",
+          title: "Myopia, hyperopia, or astigmatism",
+          description:
+            "Refractive errors occur when the eye's shape prevents light from focusing correctly on the retina. Myopia (nearsightedness), hyperopia (farsightedness), and astigmatism are the most common. Most are correctable with glasses or contacts — but many people live without full correction due to cost, access, or denial.",
+          stat: "~2.2 billion people globally have a near or distance vision impairment (WHO, 2019)",
+          issues: [
+            {
+              problem:
+                "Fine print at 10px becomes completely unreadable under even mild blur",
+              fix: 'Never use font sizes below 16px for body copy. Disclaimers and "fine print" still must be readable — "small" is not a legal defence for hiding information from users. A minimum of 14px for secondary text is acceptable only when contrast is strong.',
+              cssSnippet:
+                "body { font-size: 1rem; } /* 16px — minimum for body copy */\n.disclaimer { font-size: 0.875rem; } /* 14px — secondary text floor */",
+              wcagLabel: "WCAG 1.4.4 Resize Text",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/resize-text.html",
+            },
+            {
+              problem:
+                "Price text at font-weight: 300 / 13px disappears under blur",
+              fix: "Thin font weights reduce stroke width dramatically — letters become hairlines under blur. Use font-weight: 400 minimum for any price, label, or UI data. Reserve light weights for large decorative display text only.",
+              cssSnippet:
+                ".price {\n  font-size: 1.125rem; /* 18px */\n  font-weight: 600; /* semibold — resilient under blur */\n  color: #111827;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "Subtitle in #999999 on white (2.85:1) was already borderline — blur makes it invisible",
+              fix: "#999999 on white is only 2.85:1 — already failing WCAG AA (requires 4.5:1 for small text). Any blur makes it unreadable. Secondary text must meet the same contrast standard as primary text.",
+              cssSnippet:
+                "/* ❌ Fails: #999999 on white = 2.85:1 */\n/* ✅ Fix: #767676 on white = 4.54:1 (barely AA) */\n/* Better: #4b5563 on white = 7.0:1 (passes AAA) */\n.subtitle { color: #4b5563; }",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                '"Add to Cart" CTA is harder to locate and its coral color reads poorly',
+              fix: "CTAs must have minimum 44×44px touch targets (WCAG 2.5.5). Coral (#e8735a) on white is ~3.0:1 — the text fails AA. Fix both the contrast and the target size together.",
+              cssSnippet:
+                ".btn-cta {\n  min-height: 44px;\n  padding: 0.75rem 1.5rem;\n  background: #1d4ed8; /* 8.6:1 on white */\n  color: #ffffff;\n  font-size: 1rem;\n  font-weight: 600;\n}",
+              wcagLabel: "WCAG 2.5.5 Target Size",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/target-size.html",
+            },
+          ],
+        },
+        {
+          id: "blur-severe",
+          label: "Severe Low Vision",
+          icon: "cloud",
+          title: "20/200 or worse — legal blindness threshold",
+          description:
+            "Severe low vision means visual acuity of 20/200 or worse even with correction — the legal threshold for blindness in many countries. It includes advanced glaucoma, diabetic retinopathy, and late-stage retinitis pigmentosa. Users typically rely on screen magnification at 400–600% alongside very high contrast.",
+          stat: "43 million people are blind; 295 million have moderate-to-severe visual impairment (WHO, 2021)",
+          issues: [
+            {
+              problem:
+                "Nearly all text is unreadable — the layout effectively ceases to function",
+              fix: "Layouts must not break at 400% browser zoom (WCAG 1.4.10 Reflow). Use relative units (rem, em, %) everywhere. Never set max-height on containers holding text. Test at 320px viewport width — that equals 400% zoom on a standard 1280px screen.",
+              cssSnippet:
+                "/* Use fluid type and relative sizing throughout */\nbody { font-size: 1rem; }\n.container { max-width: min(100%, 1100px); }\n/* Avoid: height: 480px on any container with text */\n/* Test: resize browser to 320px width */",
+              wcagLabel: "WCAG 1.4.10 Reflow",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/reflow.html",
+            },
+            {
+              problem:
+                "Color-only status badges (green/red) have completely lost their signal",
+              fix: "At severe blur, colors bleed together and hue becomes irrelevant. Status must be communicated with shape, icon, and text — never color alone. This is the most violated WCAG criterion in production.",
+              cssSnippet:
+                '/* ❌ Color only — fails at blur and for CVD */\n.badge-in-stock { color: #22c55e; }\n\n/* ✅ Icon + accessible color + text */\n.badge-in-stock::before {\n  content: "";\n  /* Include check SVG icon here */\n}\n.badge-out-of-stock::before { content: ""; /* X icon */ }',
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Star rating has no numeric fallback — completely unreadable",
+              fix: 'Stars without a numeric label fail for low vision, color blindness, and screen readers simultaneously. Always pair star graphics with a visible text label: "4 out of 5 stars (1,243 reviews)".',
+              cssSnippet:
+                '<span class="stars" aria-hidden="true">★★★★☆</span>\n<span class="rating-label">\n  4 out of 5 stars (1,243 reviews)\n</span>',
+              wcagLabel: "WCAG 1.1.1 Non-text Content",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+            },
+            {
+              problem:
+                'The "see price history" link in #aaaaaa is indistinguishable from plain text',
+              fix: "#aaaaaa on white is 2.32:1 — far below the 4.5:1 minimum. Links must also be distinguishable from surrounding text by more than color alone (e.g., underline). Fix both contrast and visual differentiation.",
+              cssSnippet:
+                "a:not([class]) {\n  color: #0052cc; /* 7.0:1 on white */\n  text-decoration: underline;\n  text-underline-offset: 3px;\n}",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+          ],
+        },
+        {
+          id: "protanopia",
+          label: "Protanopia",
+          icon: "palette",
+          title: "Absent L (red-sensitive) cone cells",
+          description:
+            "Protanopia is a form of dichromacy where the red-sensitive L-cone photoreceptors are absent. Red appears very dark or black, and red-green distinctions disappear entirely. It is X-linked, affecting approximately 1% of males. Reds that normally warn or signal action become invisible.",
+          stat: "~1% of males have protanopia; red appears dark, almost black — red/green are indistinguishable",
+          issues: [
+            {
+              problem:
+                '"In Stock" (green) and "Out of Stock" (red) badges are visually identical',
+              fix: "Red and green are the worst color pair to use for status differentiation — they look identical to both protanopes and deuteranopes. Replace color with icons: a check icon for available, an X for unavailable. Color becomes a secondary reinforcement, not the primary signal.",
+              cssSnippet:
+                "/* ❌ Color only */\n.badge-in-stock { color: #22c55e; }\n\n/* ✅ Icon + high-contrast color + text */\n.badge-in-stock {\n  color: #166534; /* dark green = 9.1:1 on white */\n  /* Add check icon via SVG or ::before */\n}\n.badge-out-of-stock {\n  color: #991b1b; /* dark red = 9.0:1 on white */\n  /* Add X icon */\n}",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Rating chart — red vs green bars — is meaningless; all bars appear the same tone",
+              fix: "Any chart using red and green to differentiate data fails for ~8% of male users. Use blue and orange (CVD-safe pair), or add text labels and patterns to bars. Always label data values directly.",
+              cssSnippet:
+                "/* ❌ Red/green — fails for ~8% of males */\n.bar-positive { background: #22c55e; }\n.bar-negative { background: #ef4444; }\n\n/* ✅ CVD-safe pair: blue + orange */\n.bar-positive { background: #1d4ed8; }\n.bar-negative { background: #ea580c; }",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                '"Add to Cart" coral button appears as a dull brownish-grey — blend with the page',
+              fix: "Coral relies on red perception which is absent in protanopia. Choose CTA colors safe for all CVD types. Blue-based CTAs are universally safe. Avoid coral, salmon, orange-red, and red for primary actions.",
+              cssSnippet:
+                ".btn-cta {\n  background: #1d4ed8; /* blue — safe for all CVD types */\n  color: #ffffff; /* 8.6:1 contrast */\n  border: none;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "Star rating: filled (#f59e0b) and empty (#e5e7eb) stars shift in appearance",
+              fix: "The luminance contrast between filled and empty stars is ~2.9:1 — marginal even in normal vision. Include a visible numeric label always. Do not rely on star color to communicate value.",
+              cssSnippet:
+                '<div class="rating" aria-label="4 out of 5 stars">\n  <span aria-hidden="true" class="stars">★★★★☆</span>\n  <span class="rating-text">4.0 / 5</span>\n  <span class="review-count">(1,243 reviews)</span>\n</div>',
+              wcagLabel: "WCAG 1.1.1 Non-text Content",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+            },
+          ],
+        },
+        {
+          id: "deuteranopia",
+          label: "Deuteranopia",
+          icon: "palette",
+          title: "Absent M (green-sensitive) cone cells",
+          description:
+            'Deuteranopia is the most prevalent form of dichromacy — absent green-sensitive M-cone cells. Unlike protanopia, reds do not appear dark; instead they appear yellowish-brown, and the red-green distinction is lost. It is X-linked and affects ~1% of males. It is the form most commonly meant when people say they are "color blind."',
+          stat: "~1% of males have deuteranopia; the most prevalent form of dichromacy worldwide",
+          issues: [
+            {
+              problem:
+                '"In Stock" green and "Out of Stock" red converge to similar brownish-yellow tones',
+              fix: 'Deuteranopes experience reds as yellowish-brown and greens similarly — the two converge. The text alone ("In Stock" / "Out of Stock") is sufficient, but the shape difference between a checkmark and an X provides an additional non-color cue. Always include both.',
+              cssSnippet:
+                '.badge::before {\n  display: inline-block;\n  margin-right: 4px;\n  font-weight: 700;\n}\n.badge-in-stock::before { content: "✓"; }\n.badge-out-of-stock::before { content: "✕"; }',
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Chart bars collapse to indistinguishable olive/brown tones",
+              fix: "The green bars (~olive) and red bars (~brown) are nearly identical to deuteranopes. Redesign the chart with a CVD-safe palette and add percentage labels on each bar so data is readable without color discrimination.",
+              cssSnippet:
+                "/* CVD-safe chart palette */\n.bar-positive { background: #2563eb; } /* blue */\n.bar-negative { background: #d97706; } /* amber */\n\n/* Always include data labels */\n.bar-label {\n  font-size: 0.75rem;\n  font-weight: 600;\n  margin-left: 0.375rem;\n}",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "The coral CTA appears as a dull mustard-brown, losing prominence",
+              fix: "Coral relies on the red-green contrast that deuteranopes cannot perceive. Blue CTAs are safe for all common CVD types. Purple is also safe. Avoid red, green, orange, and salmon for primary actions.",
+              cssSnippet:
+                "/* ✅ Blue CTA — safe for protanopia, deuteranopia, tritanopia */\n.btn-cta {\n  background: #1e40af;\n  color: #ffffff; /* 10.1:1 contrast */\n  font-weight: 600;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "The low-contrast hyperlink (#aaaaaa) lacks any non-color distinction from body text",
+              fix: "The link at #aaaaaa on white is 2.32:1 — failing contrast. Without color cues, there is no other way to identify it as a link. Fix: high-contrast color + underline (not just underline-on-hover).",
+              cssSnippet:
+                "a {\n  color: #1d4ed8; /* 8.6:1 on white */\n  text-decoration: underline;\n  text-underline-offset: 3px;\n  text-decoration-thickness: 1px;\n}",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Star fill color shifts — the golden-yellow moves toward olive, less distinct from grey",
+              fix: "Always include a numeric label. Do not assume the yellow-grey distinction reads clearly — it degrades for multiple CVD types.",
+              cssSnippet:
+                '.star-rating {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n}\n.rating-numeric {\n  font-weight: 600;\n  font-size: 0.875rem;\n  color: #111827;\n} /* "4.0 out of 5" */',
+              wcagLabel: "WCAG 1.1.1 Non-text Content",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+            },
+          ],
+        },
+        {
+          id: "tritanopia",
+          label: "Tritanopia",
+          icon: "palette",
+          title: "Absent S (blue-sensitive) cone cells",
+          description:
+            "Tritanopia is a rare dichromacy where the blue-sensitive S-cone cells are absent. Blue-yellow distinctions are lost: blues appear green, yellows appear pink or grey, and cyan may look like red. It is not X-linked and affects both sexes equally. Acquired tritanopia can also develop with age or certain medications.",
+          stat: "~0.01% of the population; blue-yellow confusion — equally affects males and females",
+          issues: [
+            {
+              problem:
+                "Star ratings (#f59e0b yellow) shift toward a greenish grey — less distinct from empty stars",
+              fix: "Yellow-gold hues are among the most affected in tritanopia. #f59e0b shifts toward an ambiguous grey-green. The filled/empty distinction weakens significantly. Always pair star graphics with a numeric label.",
+              cssSnippet:
+                '.rating {\n  display: flex;\n  align-items: center;\n  gap: 0.375rem;\n}\n.rating-label {\n  font-size: 0.875rem;\n  font-weight: 600;\n  color: #111827;\n} /* "4.0 out of 5 (1,243 reviews)" */',
+              wcagLabel: "WCAG 1.1.1 Non-text Content",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+            },
+            {
+              problem:
+                "The coral CTA shifts toward pink-red — different from normal but still degraded",
+              fix: "Colors in the blue-yellow range shift most for tritanopes, but corals also shift. Blue CTAs — which look blue-green to tritanopes — are less predictable. Purple or very dark navy CTAs are the safest universal choice.",
+              cssSnippet:
+                ".btn-cta {\n  background: #4c1d95; /* purple — 13.6:1 on white, least affected by tritanopia */\n  color: #ffffff;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "Status badge colors shift — green appears cyan-ish, red can look similar to green",
+              fix: "Tritanopia primarily affects blue-yellow, but the green/red confusion can still occur. Status meaning must be communicated with icons and text shapes, not color alone — the WCAG 1.4.1 rule is absolute.",
+              cssSnippet:
+                ".badge {\n  display: flex;\n  align-items: center;\n  gap: 0.25rem;\n}\n.badge svg {\n  width: 1em;\n  height: 1em;\n  flex-shrink: 0;\n} /* Icon always present, color secondary */",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Fine print at 10px remains unreadable — independent of color vision",
+              fix: "Small text is a universal accessibility failure regardless of color perception. Minimum 16px for body copy, 12px absolute floor for any rendered text.",
+              cssSnippet:
+                ".fine-print {\n  font-size: 0.875rem; /* 14px — tolerable minimum */\n  line-height: 1.6;\n  color: #374151; /* 10.7:1 on white */\n}\n/* Never 10px. Ever. */",
+              wcagLabel: "WCAG 1.4.4 Resize Text",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/resize-text.html",
+            },
+          ],
+        },
+        {
+          id: "achromatopsia",
+          label: "Achromatopsia",
+          icon: "circle-slash",
+          title: "Complete monochromacy — no cone cell function",
+          description:
+            "Achromatopsia means no functioning cone cells at all — only rod cells remain. Vision is entirely greyscale, often with poor acuity (20/200 range), extreme light sensitivity (photophobia), and involuntary eye movement (nystagmus). It is rare but total: no hue information reaches the brain whatsoever.",
+          stat: "~1 in 30,000 people; complete monochromacy — only luminance differences are perceived",
+          issues: [
+            {
+              problem:
+                "Every color-coded element fails simultaneously — a catastrophic UX collapse",
+              fix: 'With achromatopsia, no color information reaches the brain at all. Every instance of "color communicates meaning" fails at once. This is why WCAG 1.4.1 is so important: treat any CVD violation as if it will be experienced by the strictest case.',
+              cssSnippet:
+                '/* Audit: can every piece of information be understood\n   without any color perception? */\n.badge::before { content: "✓ "; } /* shape */\n.badge-out-of-stock::before { content: "✕ "; }\n.bar[data-label]::after { content: attr(data-label); }',
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+            {
+              problem:
+                "Coral CTA (#e8735a) has luminance contrast ~3.0:1 on white — fails text contrast",
+              fix: "Without color, only luminance contrast matters. The coral button fails on luminance alone. Interactive elements need 3:1 for boundaries and 4.5:1 for text. Blue has much higher luminance contrast on white than coral.",
+              cssSnippet:
+                "/* Coral #e8735a on white = ~3.0:1 — fails WCAG AA */\n/* Blue #1d4ed8 on white = 8.6:1 — passes WCAG AAA */\n.btn-cta {\n  background: #1d4ed8;\n  color: #ffffff;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "Filled stars (#f59e0b) and empty stars (#e5e7eb) are only marginally distinct in luminance",
+              fix: "In greyscale, #f59e0b has relative luminance ~0.354 and #e5e7eb ~0.849 — a ratio of ~2.4:1. Barely distinguishable. Always include a numeric label.",
+              cssSnippet:
+                "/* Computed luminance of star colors:\n   Filled #f59e0b → ~0.354 relative luminance\n   Empty  #e5e7eb → ~0.849 relative luminance\n   Ratio: 2.4:1 — marginal, below 3:1 UI component threshold */\n.rating-label { font-size: 0.875rem; font-weight: 600; }",
+              wcagLabel: "WCAG 1.4.11 Non-text Contrast",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/non-text-contrast.html",
+            },
+            {
+              problem:
+                "Hyperlink #aaaaaa is a medium-grey on white — completely invisible as a link",
+              fix: "#aaaaaa on white is 2.32:1. In greyscale with no color cue, it is visually indistinguishable from the surrounding body text grey. High-contrast color + underline is the only reliable solution.",
+              cssSnippet:
+                "a {\n  color: #111827; /* near-black: 18.1:1 on white */\n  text-decoration: underline;\n  text-underline-offset: 3px;\n  font-weight: 600; /* further differentiates from body text */\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+          ],
+        },
+        {
+          id: "cataracts",
+          label: "Cataracts",
+          icon: "sun",
+          title: "Clouded lens — yellowing, hazing, glare",
+          description:
+            "Cataracts cloud the eye's lens, causing blurry, yellowed, hazy vision with increased sensitivity to glare and reduced contrast sensitivity. They develop gradually — sufferers often adapt without realizing how much they've lost. Cataracts are the leading cause of preventable blindness despite being surgically treatable.",
+          stat: "Affects 65 million people globally — responsible for 51% of world blindness, despite being surgically treatable",
+          issues: [
+            {
+              problem:
+                "Low-contrast subtitle (#999999) is fully erased under the yellowing and haze",
+              fix: "Cataracts add a yellow tint and reduce contrast sensitivity. Any text that was already low-contrast fails completely. The subtitle at 2.85:1 was a pre-existing failure — cataracts just expose it unmistakably.",
+              cssSnippet:
+                ".subtitle {\n  color: #374151; /* 10.7:1 on white */\n  font-size: 0.9375rem; /* 15px minimum for secondary text */\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "The coral CTA washes out under brightness increase and haze — becomes hard to find",
+              fix: "Cataracts scatter light, making light-coloured elements bloom and bleed. High-luminance or light-coloured CTAs become washed out. Use very dark backgrounds or very high luminance contrast for primary actions.",
+              cssSnippet:
+                ".btn-cta {\n  background: #1e3a5f; /* dark navy — resilient to brightness scattering */\n  color: #ffffff;\n  border: 2px solid transparent;\n}",
+              wcagLabel: "WCAG 1.4.3 Contrast (Minimum)",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+            },
+            {
+              problem:
+                "Fine print and thin-weight price text are completely illegible under simultaneous blur and haze",
+              fix: "Cataracts reduce visual acuity and contrast at the same time. Text below 16px or below font-weight: 400 becomes unusable for cataract sufferers. Weight and size are both critical.",
+              cssSnippet:
+                ".price {\n  font-size: 1.25rem; /* 20px */\n  font-weight: 600; /* semibold */\n  color: #111827;\n}\n.fine-print {\n  font-size: 0.875rem; /* 14px minimum */\n  font-weight: 400;\n}",
+              wcagLabel: "WCAG 1.4.4 Resize Text",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/resize-text.html",
+            },
+            {
+              problem:
+                "Status badges further degraded — yellow tinting shifts green toward yellow, red toward orange",
+              fix: "The cataract's yellowing moves greens and reds toward a common orange-yellow zone, compounding the CVD problem. Icons become even more essential than for color blindness alone.",
+              cssSnippet:
+                ".status-badge {\n  display: flex;\n  align-items: center;\n  gap: 0.375rem;\n  font-weight: 600;\n  font-size: 0.875rem;\n}\n.status-badge svg { flex-shrink: 0; } /* icon mandatory */",
+              wcagLabel: "WCAG 1.4.1 Use of Color",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/use-of-color.html",
+            },
+          ],
+        },
+        {
+          id: "macular",
+          label: "Macular Degeneration",
+          icon: "focus",
+          title: "Central scotoma — the macula is destroyed",
+          description:
+            "Macular degeneration destroys the macula, the central high-acuity region of the retina. A blank or blurred spot develops in the centre of the visual field — the exact area used for reading, recognising faces, and fine detail work. Peripheral vision remains intact but cannot compensate for reading tasks. It is the leading cause of vision loss in adults over 50 in developed countries.",
+          stat: "Affects 200 million people globally — the leading cause of vision loss in adults over 50",
+          issues: [
+            {
+              problem:
+                "Product title and price fall directly into the central blind spot",
+              fix: "Central vision loss means centrally-placed critical information disappears first. Left-align all important product data — title, price, CTA. Avoid centred layouts for product detail columns. Left-aligned content allows users to find it in their peripheral field.",
+              cssSnippet:
+                ".product-info {\n  text-align: left; /* never centre critical product data */\n}\n.product-title {\n  font-size: 1.375rem;\n  font-weight: 700;\n  /* Left edge is readable even with a central scotoma */\n}",
+              wcagLabel: "WCAG 1.3.3 Sensory Characteristics",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/sensory-characteristics.html",
+            },
+            {
+              problem:
+                "CTA button centred in the column is difficult to locate with central vision blocked",
+              fix: "Users with macular degeneration learn to aim peripheral vision at predictable target positions. Left-aligned, full-width CTAs at consistent positions are far easier to locate than centred or variable-position buttons.",
+              cssSnippet:
+                ".btn-cta {\n  display: block;\n  width: 100%; /* full-width — larger and more predictable target */\n  text-align: center;\n  padding: 1rem 1.5rem;\n  min-height: 48px;\n}",
+              wcagLabel: "WCAG 2.5.5 Target Size",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/target-size.html",
+            },
+            {
+              problem:
+                "Fine print and disclaimer text land directly in the obscured zone",
+              fix: "Critical information must never be buried in fine print below a CTA. If secondary text is necessary, left-align it with adequate font size and contrast so it can be read peripherally.",
+              cssSnippet:
+                ".disclaimer {\n  font-size: 0.875rem;\n  text-align: left; /* never centre — peripheral reading requires alignment */\n  color: #374151; /* 10.7:1 */\n  margin-top: 0.75rem;\n  max-width: 55ch;\n}",
+              wcagLabel: "WCAG 1.4.4 Resize Text",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/resize-text.html",
+            },
+            {
+              problem:
+                "Star rating row in the info column lands squarely in the obscured central field",
+              fix: "Stars in a product info column typically fall in the centre of the user's remaining reading field. Left-align the rating row and include a numeric label immediately adjacent. The number is more reliably perceived peripherally than 5 small symbols.",
+              cssSnippet:
+                ".rating-row {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n  justify-content: flex-start; /* never centre rating info */\n  flex-wrap: nowrap;\n}",
+              wcagLabel: "WCAG 1.3.3 Sensory Characteristics",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/sensory-characteristics.html",
+            },
+          ],
+        },
+        {
+          id: "glaucoma",
+          label: "Glaucoma",
+          icon: "aperture",
+          title: "Progressive peripheral field loss — tunnel vision",
+          description:
+            'Glaucoma damages the optic nerve, usually from elevated intraocular pressure, destroying peripheral vision from the outside in. The result is "tunnel vision" that narrows over years. Critically, early glaucoma is painless and often symptom-free — an estimated 50% of people with glaucoma are undiagnosed. By the time it is noticed, significant irreversible damage has occurred.',
+          stat: 'Affects 80 million people globally — second leading cause of blindness, often called "the silent thief of sight"',
+          issues: [
+            {
+              problem:
+                "Peripheral interface elements — navigation, breadcrumbs, edge content — are invisible",
+              fix: "With advanced tunnel vision, only 10–20° of the central visual field may be usable. Navigation at screen edges is invisible. Centre primary navigation or move it to the bottom (central on small screens). Keep all critical interactive elements in the viewport centre.",
+              cssSnippet:
+                "/* Consider central or bottom navigation placement */\n.primary-nav {\n  position: fixed;\n  bottom: 1rem;\n  left: 50%;\n  transform: translateX(-50%);\n  /* Ensures visibility within the central tunnel */\n}",
+              wcagLabel: "WCAG 1.3.3 Sensory Characteristics",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/sensory-characteristics.html",
+            },
+            {
+              problem:
+                "The two-column layout requires scanning beyond the functional visual field",
+              fix: "Glaucoma restricts the readable horizontal scan width. A two-column product layout (image left, info right) means one column may be entirely invisible. Single-column responsive layouts are essential for all users at small viewports.",
+              cssSnippet:
+                "@media (max-width: 768px) {\n  .product-layout {\n    grid-template-columns: 1fr;\n  }\n}\n/* Consider single-column as default, widening only for ample viewports */\n.product-layout {\n  max-width: 65ch; /* limits scan width */\n}",
+              wcagLabel: "WCAG 1.4.10 Reflow",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/reflow.html",
+            },
+            {
+              problem:
+                "Long line lengths require horizontal eye tracking outside the functional field",
+              fix: "Optimal line length (45–75 characters) matters doubly for tunnel-vision users. Long lines extend beyond the visible field, making reading impossible. Always set max-width on text containers.",
+              cssSnippet:
+                ".content-body {\n  max-width: 65ch; /* ~65 chars — optimal reading width */\n  margin-inline: auto;\n  line-height: 1.75; /* extra line height helps with small visual field */\n}",
+              wcagLabel: "WCAG 1.4.8 Visual Presentation",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/visual-presentation.html",
+            },
+            {
+              problem:
+                "Fine print and hyperlink at layout periphery are in the fully darkened zone",
+              fix: "Content at the corners and edges of cards — disclaimers, secondary links — falls into the vignette zone. Required disclosures and CTAs must be positioned centrally, never at the layout periphery.",
+              cssSnippet:
+                ".required-disclosure {\n  grid-column: 1 / -1; /* full width — centred in layout */\n  text-align: center;\n  max-width: 50ch;\n  margin-inline: auto;\n  font-size: 0.875rem;\n}",
+              wcagLabel: "WCAG 1.3.3 Sensory Characteristics",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/sensory-characteristics.html",
+            },
+            {
+              problem:
+                "Star rating row extends too far for horizontal scan within the remaining field",
+              fix: "A 5-star row spans significant horizontal space. For glaucoma users, pairing stars with an immediately adjacent numeric label reduces the required scan width. Keep the rating compact and close together.",
+              cssSnippet:
+                ".rating-row {\n  display: flex;\n  align-items: center;\n  gap: 0.25rem; /* compact */\n  flex-wrap: nowrap;\n}\n.rating-numeric { margin-left: 0.375rem; font-weight: 600; }",
+              wcagLabel: "WCAG 1.4.10 Reflow",
+              wcagUrl:
+                "https://www.w3.org/WAI/WCAG21/Understanding/reflow.html",
+            },
+          ],
+        },
+      ];
+
+      /* ============================================================
+       STATE
+       ============================================================ */
+      let currentFilterId = "normal";
+      let splitPercent = 50;
+      let isDragging = false;
+      let canvasRafId = null;
+
+      /* ============================================================
+       UTILITY
+       ============================================================ */
+
+      /** Escape string for safe HTML insertion */
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      /* ============================================================
+       THEME
+       ============================================================ */
+
+      function initTheme() {
+        const btn = document.getElementById("theme-toggle");
+        const icon = document.getElementById("theme-icon");
+        const current =
+          document.documentElement.getAttribute("data-theme") || "light";
+
+        updateThemeButton(current, btn, icon);
+
+        btn.addEventListener("click", () => {
+          const now = document.documentElement.getAttribute("data-theme");
+          const next = now === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          localStorage.setItem("chromatic-theme", next);
+          updateThemeButton(next, btn, icon);
+        });
+      }
+
+      function updateThemeButton(theme, btn, icon) {
+        const isDark = theme === "dark";
+        btn.setAttribute(
+          "aria-label",
+          isDark ? "Switch to light mode" : "Switch to dark mode",
+        );
+        icon.setAttribute("data-lucide", isDark ? "sun" : "moon");
+        lucide.createIcons({ nodes: [btn] });
+      }
+
+      /* ============================================================
+       DEMO PRODUCT — builds the intentionally-flawed fake e-commerce page.
+       Returns a DocumentFragment. Called twice — once per pane.
+       All interactive elements get tabindex="-1" so they do not
+       enter the tab order (they are visual demo content, not real UI).
+       ============================================================ */
+
+      function buildDemoProduct() {
+        const frag = document.createDocumentFragment();
+        const wrapper = document.createElement("div");
+        wrapper.className = "dp-wrapper";
+
+        wrapper.innerHTML = `
+        <div class="dp-layout">
+
+          <div class="dp-image">
+            <div class="dp-icon-wrap">
+              <i data-lucide="headphones"></i>
+            </div>
+            <span class="dp-image-label" aria-hidden="true">APEX PRO</span>
+          </div>
+
+          <div class="dp-info">
+            <div class="dp-badges">
+              <!-- Failure #2: status by color only, no icon -->
+              <span class="dp-badge dp-badge--in-stock">In Stock</span>
+              <span class="dp-badge dp-badge--out-of-stock">Out of Stock: Black</span>
+            </div>
+
+            <h2 class="dp-title">Apex Pro Wireless Headphones</h2>
+
+            <!-- Failure #1: #999999 on white = 2.85:1, fails AA -->
+            <p class="dp-subtitle">Premium sound for the discerning listener</p>
+
+            <!-- Failure #7: color-only stars, no numeric label -->
+            <div class="dp-rating" aria-label="Rating — no numeric label provided (deliberate failure)">
+              <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
+              <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
+              <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
+              <span class="dp-star dp-star--filled" aria-hidden="true">&#9733;</span>
+              <span class="dp-star dp-star--empty"  aria-hidden="true">&#9733;</span>
+            </div>
+
+            <div class="dp-price-row">
+              <!-- Failure #8: font-weight 300 at 13px -->
+              <span class="dp-price">$89.99</span>
+              <!-- Failure #6: #aaaaaa on white = 2.32:1 -->
+              <a href="#" class="dp-price-link" tabindex="-1" aria-hidden="true">See price history</a>
+            </div>
+
+            <!-- Failure #4: chart bars in red and green only -->
+            <div class="dp-chart" aria-hidden="true">
+              <div class="dp-chart-row">
+                <span class="dp-chart-lbl">5&#9733;</span>
+                <div class="dp-bar-track"><div class="dp-bar dp-bar--green" style="width:65%"></div></div>
+                <span class="dp-chart-pct">65%</span>
+              </div>
+              <div class="dp-chart-row">
+                <span class="dp-chart-lbl">4&#9733;</span>
+                <div class="dp-bar-track"><div class="dp-bar dp-bar--green" style="width:20%"></div></div>
+                <span class="dp-chart-pct">20%</span>
+              </div>
+              <div class="dp-chart-row">
+                <span class="dp-chart-lbl">3&#9733;</span>
+                <div class="dp-bar-track"><div class="dp-bar dp-bar--green" style="width:8%"></div></div>
+                <span class="dp-chart-pct">8%</span>
+              </div>
+              <div class="dp-chart-row">
+                <span class="dp-chart-lbl">2&#9733;</span>
+                <div class="dp-bar-track"><div class="dp-bar dp-bar--red" style="width:4%"></div></div>
+                <span class="dp-chart-pct">4%</span>
+              </div>
+              <div class="dp-chart-row">
+                <span class="dp-chart-lbl">1&#9733;</span>
+                <div class="dp-bar-track"><div class="dp-bar dp-bar--red" style="width:3%"></div></div>
+                <span class="dp-chart-pct">3%</span>
+              </div>
+            </div>
+
+            <!-- Failure #3: coral #e8735a on white = ~3.0:1, fails AA -->
+            <button class="dp-cta" tabindex="-1" aria-hidden="true">Add to Cart</button>
+
+            <!-- Failure #5: 10px text -->
+            <p class="dp-fine-print">
+              *Offer valid while supplies last. Free shipping on orders over $75.
+              See <a href="#" class="dp-fine-link" tabindex="-1" aria-hidden="true">terms and conditions</a>
+              for full details of the return policy and warranty coverage.
+            </p>
+          </div>
+
+        </div>
+      `;
+
+        frag.appendChild(wrapper);
+        return frag;
+      }
+
+      /* ============================================================
+       SLIDER
+       ============================================================ */
+
+      function initSlider() {
+        const container = document.getElementById("slider-container");
+        const handle = document.getElementById("slider-handle");
+
+        /** Convert clientX to a percentage within the container */
+        function getPercent(clientX) {
+          const rect = container.getBoundingClientRect();
+          return ((clientX - rect.left) / rect.width) * 100;
+        }
+
+        /* --- Mouse drag --- */
+        handle.addEventListener("mousedown", (e) => {
+          isDragging = true;
+          container.classList.add("is-dragging");
+          e.preventDefault(); /* prevent text selection during drag */
+        });
+
+        document.addEventListener("mousemove", (e) => {
+          if (!isDragging) return;
+          setSplit(getPercent(e.clientX));
+        });
+
+        document.addEventListener("mouseup", () => {
+          if (!isDragging) return;
+          isDragging = false;
+          container.classList.remove("is-dragging");
+        });
+
+        /* --- Touch drag --- */
+        handle.addEventListener(
+          "touchstart",
+          () => {
+            isDragging = true;
+            container.classList.add("is-dragging");
+          },
+          { passive: true },
+        );
+
+        document.addEventListener(
+          "touchmove",
+          (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); /* prevent page scroll during slider drag */
+            setSplit(getPercent(e.touches[0].clientX));
+          },
+          { passive: false },
+        );
+
+        document.addEventListener("touchend", () => {
+          if (!isDragging) return;
+          isDragging = false;
+          container.classList.remove("is-dragging");
+        });
+
+        /* --- Keyboard --- */
+        handle.addEventListener("keydown", (e) => {
+          const STEP = 5; /* 5% per keypress */
+          switch (e.key) {
+            case "ArrowLeft":
+              e.preventDefault();
+              setSplit(splitPercent - STEP);
+              break;
+            case "ArrowRight":
+              e.preventDefault();
+              setSplit(splitPercent + STEP);
+              break;
+            case "Home":
+              e.preventDefault();
+              setSplit(5);
+              break;
+            case "End":
+              e.preventDefault();
+              setSplit(95);
+              break;
+          }
+        });
+
+        /* --- ResizeObserver: redraw canvases when container size changes --- */
+        const resizeObserver = new ResizeObserver(() => {
+          if (canvasRafId) cancelAnimationFrame(canvasRafId);
+          canvasRafId = requestAnimationFrame(() => {
+            redrawActiveCanvas();
+            canvasRafId = null;
+          });
+        });
+        resizeObserver.observe(container);
+      }
+
+      /**
+       * Update the split position. Clamps to 5–95 so the handle
+       * remains fully visible at both extremes.
+       */
+      function setSplit(pct) {
+        const clamped = Math.max(5, Math.min(95, pct));
+        splitPercent = clamped;
+
+        const container = document.getElementById("slider-container");
+        const handle = document.getElementById("slider-handle");
+
+        /* CSS variable drives both pane clip-paths and handle position */
+        container.style.setProperty("--split", `${clamped}%`);
+        handle.setAttribute("aria-valuenow", String(Math.round(clamped)));
+      }
+
+      /* ============================================================
+       FILTERS
+       ============================================================ */
+
+      /* CSS filter strings keyed by filter ID.
+       SVG filters reference inline <filter> elements by ID.
+       Canvas-only filters (macular, glaucoma) have empty strings here
+       — they are handled entirely by canvas overlay drawing. */
+      const CSS_FILTER_MAP = {
+        normal: "",
+        "blur-mild": "blur(2px) contrast(0.9)",
+        "blur-severe": "blur(5px) contrast(0.65) brightness(1.1)",
+        protanopia: "url(#filter-protanopia)",
+        deuteranopia: "url(#filter-deuteranopia)",
+        tritanopia: "url(#filter-tritanopia)",
+        achromatopsia: "grayscale(100%) contrast(1.05)",
+        cataracts: "blur(1px) brightness(1.5) contrast(0.6) sepia(0.25)",
+        macular: "blur(1.5px)",
+        glaucoma: "",
+      };
+
+      function applyFilter(filter) {
+        const demoFiltered = document.getElementById("demo-filtered");
+        const macularCanvas = document.getElementById("overlay-macular");
+        const glaucomaCanvas = document.getElementById("overlay-glaucoma");
+
+        demoFiltered.style.filter = CSS_FILTER_MAP[filter.id] || "";
+
+        const showMacular = filter.id === "macular";
+        const showGlaucoma = filter.id === "glaucoma";
+
+        macularCanvas.hidden = !showMacular;
+        glaucomaCanvas.hidden = !showGlaucoma;
+
+        if (showMacular) drawMacularSpot(macularCanvas);
+        if (showGlaucoma) drawGlaucomaVignette(glaucomaCanvas);
+      }
+
+      /* ============================================================
+       CANVAS OVERLAYS
+       ============================================================ */
+
+      /**
+       * Macular degeneration: dark spot at centre of viewport.
+       * The macula is the fovea — the dead/blurred zone is exactly
+       * where the user looks, not at the periphery.
+       */
+      function drawMacularSpot(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        const cx = w / 2;
+        const cy = h / 2;
+        /* Spot diameter ≈ 35% of pane width → radius ≈ 17.5% */
+        const inner = w * 0.06; /* hard core of the scotoma */
+        const outer = w * 0.2; /* feathered edge of the scotoma */
+
+        ctx.clearRect(0, 0, w, h);
+
+        const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+        grad.addColorStop(0, "rgba(8, 6, 4, 0.86)"); /* dense central scotoma */
+        grad.addColorStop(0.5, "rgba(8, 6, 4, 0.60)");
+        grad.addColorStop(1, "rgba(8, 6, 4, 0)"); /* feathered edge */
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      /**
+       * Glaucoma: radial vignette — transparent centre, dark periphery.
+       * Tunnel vision: only the central ~20° remains, edges are blacked out.
+       */
+      function drawGlaucomaVignette(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        const cx = w / 2;
+        const cy = h / 2;
+        /* Clear tunnel: ~22% of the shorter dimension */
+        const inner = Math.min(w, h) * 0.22;
+        /* Full vignette at 70% of the longer dimension */
+        const outer = Math.max(w, h) * 0.68;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+        grad.addColorStop(0, "rgba(0, 0, 0, 0)"); /* clear tunnel centre */
+        grad.addColorStop(0.38, "rgba(0, 0, 0, 0.45)");
+        grad.addColorStop(0.72, "rgba(0, 0, 0, 0.82)");
+        grad.addColorStop(
+          1,
+          "rgba(0, 0, 0, 0.95)",
+        ); /* nearly opaque periphery */
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      function redrawActiveCanvas() {
+        if (currentFilterId === "macular") {
+          const canvas = document.getElementById("overlay-macular");
+          if (!canvas.hidden) drawMacularSpot(canvas);
+        } else if (currentFilterId === "glaucoma") {
+          const canvas = document.getElementById("overlay-glaucoma");
+          if (!canvas.hidden) drawGlaucomaVignette(canvas);
+        }
+      }
+
+      /* ============================================================
+       FILTER PILLS — radiogroup pattern with roving tabindex
+       ============================================================ */
+
+      function updatePillFades() {
+        const pills = document.getElementById("filter-pills");
+        const wrap = pills.parentElement;
+        const { scrollLeft, scrollWidth, clientWidth } = pills;
+        wrap.classList.toggle("overflow-left", scrollLeft > 4);
+        wrap.classList.toggle(
+          "overflow-right",
+          scrollLeft < scrollWidth - clientWidth - 4,
+        );
+      }
+
+      function buildFilterPills() {
+        const group = document.getElementById("filter-pills");
+        const frag = document.createDocumentFragment();
+
+        FILTERS.forEach((filter, idx) => {
+          const pill = document.createElement("div");
+          pill.className = "filter-pill";
+          pill.setAttribute("role", "radio");
+          pill.setAttribute("aria-checked", idx === 0 ? "true" : "false");
+          pill.setAttribute("tabindex", idx === 0 ? "0" : "-1");
+          pill.setAttribute("title", filter.title);
+          pill.dataset.filterId = filter.id;
+
+          pill.innerHTML = `<i data-lucide="${escapeHtml(filter.icon)}"></i><span>${escapeHtml(filter.label)}</span>`;
+
+          frag.appendChild(pill);
+        });
+
+        group.appendChild(frag);
+
+        /* Fade indicators — update on scroll and resize */
+        group.addEventListener("scroll", updatePillFades, { passive: true });
+        window.addEventListener("resize", updatePillFades, { passive: true });
+        updatePillFades();
+
+        /* Click handler — delegated to the group */
+        group.addEventListener("click", (e) => {
+          const pill = e.target.closest('[role="radio"]');
+          if (pill) selectFilter(pill.dataset.filterId);
+        });
+
+        /* Arrow key navigation within the radiogroup */
+        group.addEventListener("keydown", (e) => {
+          if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+          e.preventDefault();
+
+          const pills = [...group.querySelectorAll('[role="radio"]')];
+          const focused = document.activeElement;
+          const idx = pills.indexOf(focused);
+          if (idx === -1) return;
+
+          const next =
+            e.key === "ArrowRight"
+              ? (idx + 1) % pills.length
+              : (idx - 1 + pills.length) % pills.length;
+
+          selectFilter(pills[next].dataset.filterId);
+          pills[next].focus();
+        });
+      }
+
+      function selectFilter(id) {
+        if (id === currentFilterId) return;
+        currentFilterId = id;
+
+        const filter = FILTERS.find((f) => f.id === id);
+        if (!filter) return;
+
+        /* Update roving tabindex and aria-checked on all pills */
+        document.querySelectorAll('[role="radio"]').forEach((pill) => {
+          const active = pill.dataset.filterId === id;
+          pill.setAttribute("aria-checked", active ? "true" : "false");
+          pill.setAttribute("tabindex", active ? "0" : "-1");
+        });
+
+        /* Update visible filter label in the filtered pane */
+        document.getElementById("filter-label").textContent = filter.label;
+
+        /* Announce to screen readers via a separate live region
+         (the filtered pane is aria-hidden, so its label won't be read) */
+        document.getElementById("filter-announcement").textContent =
+          `${filter.label} filter applied.`;
+
+        applyFilter(filter);
+        renderConditionCard(filter);
+        renderAuditPanel(filter);
+
+        /* Re-render all Lucide icons that were just added to the DOM */
+        lucide.createIcons();
+      }
+
+      /* ============================================================
+       CONDITION CARD
+       ============================================================ */
+
+      function renderConditionCard(filter) {
+        const section = document.getElementById("condition");
+
+        let html = "";
+
+        if (filter.id === "normal") {
+          html = `
+          <div class="condition-card condition-normal">
+            <div class="condition-icon-wrap">
+              <i data-lucide="eye"></i>
+            </div>
+            <div>
+              <h2 class="condition-name">Normal Vision — Baseline</h2>
+              <p class="condition-description" style="margin-top:0.5rem">${escapeHtml(filter.description)}</p>
+              <p class="condition-hint">Select a filter above to simulate a visual impairment.</p>
+            </div>
+          </div>
+        `;
+        } else {
+          html = `
+          <div class="condition-card">
+            <div class="condition-header">
+              <h2 class="condition-name">${escapeHtml(filter.label)}</h2>
+              ${
+                filter.stat
+                  ? `
+                <div class="condition-stat">
+                  <i data-lucide="users"></i>
+                  <span>${escapeHtml(filter.stat)}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+            <p class="condition-description">${escapeHtml(filter.description)}</p>
+          </div>
+        `;
+        }
+
+        section.innerHTML = html;
+      }
+
+      /* ============================================================
+       AUDIT PANEL
+       ============================================================ */
+
+      function renderAuditPanel(filter) {
+        const section = document.getElementById("audit");
+
+        if (filter.issues.length === 0) {
+          section.innerHTML = `
+          <div class="audit-empty">
+            <i data-lucide="check-circle-2"></i>
+            <p>No specific issues highlighted for this filter. Use the slider to observe the reference design, then compare against any of the impairment filters.</p>
+          </div>
+        `;
+          return;
+        }
+
+        /* Build with DocumentFragment to avoid repeated reflows */
+        const frag = document.createDocumentFragment();
+
+        const heading = document.createElement("h3");
+        heading.className = "audit-heading";
+        heading.textContent = `${filter.issues.length} Accessibility Issue${filter.issues.length !== 1 ? "s" : ""} Identified`;
+        frag.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "audit-grid";
+
+        for (const issue of filter.issues) {
+          grid.appendChild(buildIssueCard(issue));
+        }
+
+        frag.appendChild(grid);
+
+        section.innerHTML = "";
+        section.appendChild(frag);
+
+        /* Attach copy-button handlers after cards are in the DOM */
+        section.querySelectorAll(".copy-btn").forEach((btn) => {
+          btn.addEventListener("click", () =>
+            copyToClipboard(btn.dataset.snippet, btn),
+          );
+        });
+      }
+
+      function buildIssueCard(issue) {
+        const article = document.createElement("article");
+        article.className = "issue-card";
+        article.setAttribute(
+          "aria-label",
+          `Issue: ${issue.problem.slice(0, 70)}`,
+        );
+
+        article.innerHTML = `
+        <header class="issue-card__header">
+          <div class="issue-badge issue-badge--problem">
+            <i data-lucide="alert-triangle"></i>
+            <span>Issue</span>
+          </div>
+          <p class="issue-problem">${escapeHtml(issue.problem)}</p>
+        </header>
+        <div class="issue-fix">
+          <div class="issue-badge issue-badge--fix">
+            <i data-lucide="check-circle"></i>
+            <span>Fix</span>
+          </div>
+          <p class="issue-fix-text">${escapeHtml(issue.fix)}</p>
+          <pre class="issue-code"><code>${escapeHtml(issue.cssSnippet)}</code></pre>
+          <footer class="issue-footer">
+            <a href="${escapeHtml(issue.wcagUrl)}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="wcag-chip"
+               aria-label="${escapeHtml(issue.wcagLabel)} — WCAG reference (opens in new tab)">
+              <i data-lucide="external-link"></i>
+              <span>${escapeHtml(issue.wcagLabel)}</span>
+            </a>
+            <button class="copy-btn" aria-label="Copy CSS fix to clipboard">
+              <i data-lucide="clipboard"></i>
+              <span class="copy-btn__label">Copy fix</span>
+            </button>
+          </footer>
+        </div>
+      `;
+
+        /* Set snippet via dataset to avoid HTML-encoding the code */
+        article.querySelector(".copy-btn").dataset.snippet = issue.cssSnippet;
+
+        return article;
+      }
+
+      /* ============================================================
+       CLIPBOARD
+       ============================================================ */
+
+      async function copyToClipboard(text, btn) {
+        const icon = btn.querySelector("i");
+        const label = btn.querySelector(".copy-btn__label");
+
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          /* Fallback for non-secure contexts (e.g., file:// in some browsers) */
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.cssText = "position:absolute;opacity:0;pointer-events:none";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand(
+            "copy",
+          ); /* deprecated but widely supported as fallback */
+          document.body.removeChild(ta);
+        }
+
+        /* Provide visual feedback — revert after 2s */
+        icon.setAttribute("data-lucide", "check");
+        label.textContent = "Copied!";
+        btn.setAttribute("aria-label", "Copied to clipboard");
+        lucide.createIcons({ nodes: [btn] });
+
+        setTimeout(() => {
+          icon.setAttribute("data-lucide", "clipboard");
+          label.textContent = "Copy fix";
+          btn.setAttribute("aria-label", "Copy CSS fix to clipboard");
+          lucide.createIcons({ nodes: [btn] });
+        }, 2000);
+      }
+
+      /* ============================================================
+       INIT — deferred until DOMContentLoaded so Lucide (defer) is ready
+       ============================================================ */
+
+      document.addEventListener("DOMContentLoaded", () => {
+        /* 1. Theme button (icon update requires Lucide) */
+        initTheme();
+
+        /* 2. Inject demo product into both panes */
+        document.getElementById("demo-normal").appendChild(buildDemoProduct());
+        document
+          .getElementById("demo-filtered")
+          .appendChild(buildDemoProduct());
+
+        /* 3. Build filter pills from FILTERS data */
+        buildFilterPills();
+
+        /* 4. Wire up the slider */
+        initSlider();
+
+        /* 5. Render initial condition card (normal vision) */
+        renderConditionCard(FILTERS[0]);
+        renderAuditPanel(FILTERS[0]);
+
+        /* 6. Set initial split position */
+        setSplit(50);
+
+        /* 7. Render all Lucide icons in the now-populated DOM */
+        lucide.createIcons();
+      });
+    </script>
+  </body>
+</html>
