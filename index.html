@@ -48,6 +48,12 @@
       defer
     ></script>
 
+    <!-- html-to-image — MIT-licensed, used for the "Download view" feature -->
+    <script
+      src="https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js"
+      defer
+    ></script>
+
     <style>
       /* ============================================================
        CHROMATIC — Visual Impairment Accessibility Simulator
@@ -157,6 +163,11 @@
         box-sizing: border-box;
         margin: 0;
         padding: 0;
+      }
+
+      /* Ensure the HTML hidden attribute always wins over display declarations */
+      [hidden] {
+        display: none !important;
       }
 
       html {
@@ -1510,6 +1521,140 @@
         color: #2563eb;
         text-decoration: underline;
       }
+
+      /* ============================================================
+       SLIDER TOOLBAR — upload trigger + download, one row above slider
+       ============================================================ */
+
+      .slider-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-bottom: var(--space-3);
+      }
+
+      @media (max-width: 480px) {
+        .slider-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .slider-toolbar > * {
+          justify-content: center;
+        }
+      }
+
+      /* Shared pill style used by both toolbar buttons and the upload label */
+      .toolbar-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        font-family: inherit;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: border-color var(--transition-fast), color var(--transition-fast);
+      }
+
+      .toolbar-pill:hover:not(:disabled) {
+        border-color: var(--color-accent);
+        color: var(--color-accent);
+      }
+
+      .toolbar-pill:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .toolbar-pill i {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      /* Active state pill — shown after an image is loaded */
+      .toolbar-pill--active {
+        border-color: var(--color-accent);
+        color: var(--color-text-primary);
+        gap: var(--space-1);
+      }
+
+      .toolbar-pill--active i {
+        color: var(--color-accent);
+      }
+
+      #upload-filename {
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .upload-reset-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: var(--space-1);
+        padding: 0;
+        background: transparent;
+        border: none;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: color var(--transition-fast);
+      }
+
+      .upload-reset-icon:hover {
+        color: var(--color-danger);
+      }
+
+      .upload-reset-icon i {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* Image displayed in upload mode */
+      .upload-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        background: #ffffff;
+      }
+
+      /* Audit panel exploration callout shown in upload mode */
+      .upload-explore {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-5);
+        padding: var(--space-6);
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+      }
+
+      .upload-explore i {
+        flex-shrink: 0;
+        color: var(--color-accent);
+        margin-top: 2px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .upload-explore p {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+        line-height: 1.7;
+      }
     </style>
   </head>
   <body>
@@ -1592,6 +1737,7 @@
           <button
             class="theme-toggle"
             id="theme-toggle"
+            type="button"
             aria-label="Switch to dark mode"
           >
             <i data-lucide="moon" id="theme-icon"></i>
@@ -1632,6 +1778,45 @@
       <section class="slider-section" aria-labelledby="slider-heading">
         <div class="container">
           <h2 id="slider-heading" class="sr-only">Vision comparison slider</h2>
+
+          <!-- Toolbar: upload trigger (left) + download (right) -->
+          <div class="slider-toolbar">
+            <!-- Upload trigger — toggles to active state after image is loaded -->
+            <label
+              class="toolbar-pill"
+              id="upload-trigger"
+              for="upload-input"
+              title="Upload a screenshot to test it through each filter"
+            >
+              <i data-lucide="image-plus"></i>
+              Test your UI
+              <input type="file" id="upload-input" accept="image/*" class="sr-only" />
+            </label>
+
+            <!-- Active state — shown in place of the trigger after upload -->
+            <span class="toolbar-pill toolbar-pill--active" id="upload-active-bar" hidden>
+              <i data-lucide="image"></i>
+              <span id="upload-filename">screenshot.png</span>
+              <button
+                type="button"
+                id="upload-reset-btn"
+                class="upload-reset-icon"
+                aria-label="Remove image and return to demo"
+              >
+                <i data-lucide="x"></i>
+              </button>
+            </span>
+
+            <button
+              class="toolbar-pill"
+              id="download-btn"
+              type="button"
+              aria-label="Download current filtered view as PNG"
+            >
+              <i data-lucide="download"></i>
+              <span class="download-btn__label">Download view</span>
+            </button>
+          </div>
           <div class="slider-container" id="slider-container">
             <!-- Left pane: unfiltered reference -->
             <div class="pane pane-normal" id="pane-normal">
@@ -2441,6 +2626,7 @@
       let splitPercent = 50;
       let isDragging = false;
       let canvasRafId = null;
+      let uploadMode = false; /* true when user has loaded their own screenshot */
 
       /* ============================================================
        UTILITY
@@ -2960,6 +3146,18 @@
       function renderAuditPanel(filter) {
         const section = document.getElementById("audit");
 
+        /* Upload mode: product-specific issues don't apply — show exploration prompt */
+        if (uploadMode) {
+          section.innerHTML = `
+            <div class="upload-explore">
+              <i data-lucide="compass"></i>
+              <p>Apply each filter above to see how your UI appears to users with color vision deficiency, blur, or field loss. Drag the handle to compare before and after — look for areas where critical information relies on colour alone, small text, or peripheral detail.</p>
+            </div>
+          `;
+          lucide.createIcons({ nodes: [section] });
+          return;
+        }
+
         if (filter.issues.length === 0) {
           section.innerHTML = `
           <div class="audit-empty">
@@ -3082,6 +3280,134 @@
       }
 
       /* ============================================================
+       UPLOAD YOUR OWN UI
+       ============================================================ */
+
+      function handleFile(file) {
+        if (!file || !file.type.startsWith("image/")) return;
+        const reader = new FileReader();
+        reader.onload = (e) => setUploadedImage(e.target.result, file.name);
+        reader.readAsDataURL(file);
+      }
+
+      function setUploadedImage(dataUrl, filename) {
+        uploadMode = true;
+
+        /* Replace demo content in both panes with the uploaded image */
+        const makeImg = () => {
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          img.className = "upload-img";
+          img.alt = "";
+          img.setAttribute("aria-hidden", "true");
+          return img;
+        };
+
+        const normalMount = document.getElementById("demo-normal");
+        const filteredMount = document.getElementById("demo-filtered");
+        normalMount.innerHTML = "";
+        filteredMount.innerHTML = "";
+        normalMount.appendChild(makeImg());
+        filteredMount.appendChild(makeImg());
+
+        /* Show active bar, hide upload trigger */
+        document.getElementById("upload-trigger").hidden = true;
+        document.getElementById("upload-active-bar").hidden = false;
+        if (filename) {
+          document.getElementById("upload-filename").textContent = filename;
+        }
+
+        /* Re-apply the current filter and refresh condition card + audit panel */
+        const filter = FILTERS.find((f) => f.id === currentFilterId);
+        if (filter) {
+          applyFilter(filter);
+          renderConditionCard(filter);
+          renderAuditPanel(filter);
+        }
+
+        lucide.createIcons();
+      }
+
+      function resetToDemo() {
+        uploadMode = false;
+
+        const normalMount = document.getElementById("demo-normal");
+        const filteredMount = document.getElementById("demo-filtered");
+        normalMount.innerHTML = "";
+        filteredMount.innerHTML = "";
+        normalMount.appendChild(buildDemoProduct());
+        filteredMount.appendChild(buildDemoProduct());
+
+        /* Reset upload input so the same file can be re-selected later */
+        document.getElementById("upload-input").value = "";
+
+        /* Restore upload trigger */
+        document.getElementById("upload-trigger").hidden = false;
+        document.getElementById("upload-active-bar").hidden = true;
+
+        /* Re-apply filter and refresh */
+        const filter = FILTERS.find((f) => f.id === currentFilterId);
+        if (filter) {
+          applyFilter(filter);
+          renderConditionCard(filter);
+          renderAuditPanel(filter);
+        }
+
+        lucide.createIcons();
+      }
+
+      /* ============================================================
+       DOWNLOAD / SHARE VIEW
+       ============================================================ */
+
+      async function captureView() {
+        if (typeof htmlToImage === "undefined") return; /* library not yet loaded */
+
+        const btn = document.getElementById("download-btn");
+        const label = btn.querySelector(".download-btn__label");
+
+        btn.disabled = true;
+        label.textContent = "Capturing\u2026";
+
+        const container = document.getElementById("slider-container");
+        const filename = `chromatic-${currentFilterId}.png`;
+
+        try {
+          /* Resolve background colour from the current theme token */
+          const bg = getComputedStyle(document.documentElement)
+            .getPropertyValue("--color-bg")
+            .trim();
+
+          const dataUrl = await htmlToImage.toPng(container, {
+            pixelRatio: 2,
+            backgroundColor: bg || "#f5f1eb",
+            /* Exclude the drag handle from the export — it's interactive chrome */
+            filter: (node) => !node.classList?.contains("slider-handle"),
+          });
+
+          const link = document.createElement("a");
+          link.download = filename;
+          link.href = dataUrl;
+          link.click();
+
+          /* Success feedback — update label only; Lucide replaces <i> with <svg>
+             after init so icon references are unreliable post-createIcons */
+          label.textContent = "Saved!";
+          btn.disabled = false;
+          setTimeout(() => {
+            label.textContent = "Download view";
+          }, 2000);
+        } catch (err) {
+          console.error("Chromatic: capture failed", err);
+          label.textContent = "Failed \u2014 try a screenshot";
+          setTimeout(() => {
+            label.textContent = "Download view";
+            btn.disabled = false;
+          }, 3000);
+        }
+      }
+
+      /* ============================================================
        INIT — deferred until DOMContentLoaded so Lucide (defer) is ready
        ============================================================ */
 
@@ -3108,7 +3434,30 @@
         /* 6. Set initial split position */
         setSplit(50);
 
-        /* 7. Render all Lucide icons — deferred to next frame so the
+        /* 7. Wire up upload controls */
+        const uploadInput = document.getElementById("upload-input");
+        uploadInput.addEventListener("change", (e) =>
+          handleFile(e.target.files[0]),
+        );
+
+        /* Drag-and-drop onto the slider itself as a convenience target */
+        const sliderDropTarget = document.getElementById("slider-container");
+        sliderDropTarget.addEventListener("dragover", (e) => e.preventDefault());
+        sliderDropTarget.addEventListener("drop", (e) => {
+          e.preventDefault();
+          handleFile(e.dataTransfer.files[0]);
+        });
+
+        document
+          .getElementById("upload-reset-btn")
+          .addEventListener("click", resetToDemo);
+
+        /* 8. Wire up download button */
+        document
+          .getElementById("download-btn")
+          .addEventListener("click", captureView);
+
+        /* 9. Render all Lucide icons — deferred to next frame so the
            DOMContentLoaded task ends before the icon scan begins,
            keeping it under the 50 ms long-task threshold. */
         requestAnimationFrame(() => lucide.createIcons());

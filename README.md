@@ -8,6 +8,8 @@ An interactive tool that lets designers and developers experience interfaces thr
 
 Chromatic renders a deliberately flawed e-commerce UI — one packed with real accessibility failures — and applies physiologically accurate simulations of ten visual conditions. A split-screen slider lets you compare normal vision against the filtered view in real time. Each condition comes with a breakdown of the specific WCAG violations it exposes and copyable CSS fixes.
 
+Upload your own screenshot to run it through any filter — drag a file onto the slider or use the toolbar button. A download button captures the current comparison view as a 2× PNG.
+
 A screenshot gallery at the bottom shows the same failure patterns appearing across four different UI types: form validation, an analytics chart, a navigation bar, and an editorial article — making the point that these aren't edge cases confined to one component.
 
 ## Conditions simulated
